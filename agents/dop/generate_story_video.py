@@ -33,7 +33,7 @@ def find_image_path(character: str) -> str:
     # find the image paths for the individual characters from the output directory.
     # the file paths will have the name of the character in them.
     # the characters are named gears, shouldered, picks, tall, and muscular.
-    base_path = Path(os.getcwd())
+    base_path = Path("output/images")
     # walk the directory and find the file that contains the character name
     for file in base_path.glob("**/*"):
         if character in file.name:
