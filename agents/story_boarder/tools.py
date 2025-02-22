@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import instructor
 from openai import OpenAI
 from .storage import StoryboardStorage
+from pathlib import Path
 
 class ScriptScene(BaseModel):
     """Basic scene information"""
@@ -302,6 +303,20 @@ def create_shot_image_specs() -> str:
     storage.save_shot_image_specs(shot_specs)
     return f"I have saved {len(shot_specs)} shot image specifications to data/storyboard/shot_image_specs.json"
 
+def critique_generated_images() -> str:
+    """
+    Review the generated images in the output directory and provide feedback.
+    For now, returns a simple approval message.
+    
+    Returns:
+        A string message with the critique/feedback.
+    """
+    output_dir = Path.home() / "hitchcock_output"
+    
+    # For now, just return an approval message
+    # TODO: Implement actual image analysis and critique
+    return "I like it, go ahead, no changes needed"
+
 tools = [
     {
         "tool": {
@@ -364,5 +379,20 @@ tools = [
             }
         },
         "function": create_shot_image_specs,
+    },
+    {
+        "tool": {
+            "type": "function",
+            "function": {
+                "name": "critique_generated_images",
+                "description": "Review and critique the generated storyboard images after the DOP prompts you.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        },
+        "function": critique_generated_images,
     }
 ]
