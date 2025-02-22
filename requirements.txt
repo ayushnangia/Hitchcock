@@ -52,3 +52,5 @@ PyPDF2
 python-pptx
 xlrd
 SpeechRecognition
+moviepy==1.0.3
+mahilo
