@@ -1,0 +1,30 @@
+{
+  "character": {
+    "name": "muscular",
+    "age": "adult",
+    "gender": "unspecified",
+    "physical_appearance": {
+      "build": "muscular",
+      "height": "tall",
+      "hair": "hair flows with static electricity and contains floating metallic ornaments",
+      "eyes": "eyes are silver with clockwork patterns",
+      "skin": "skin that seems to shimmer"
+    },
+    "clothing": {
+      "outfit": "steampunk attire",
+      "accessories": "accessories include energy-conducting gauntlets and boots with magnetic soles",
+      "details": "standard details"
+    },
+    "demeanor": {
+      "posture": "posture is dynamic and energetic",
+      "movement": "movements are bold and powerful",
+      "expression": "expression radiates confidence and excitement"
+    }
+  },
+  "generation": {
+    "timestamp": "2025-02-22T18:51:02.745798",
+    "image_path": "output/images/character_5_muscular_20250222_184950.jpg",
+    "session_id": "20250222_184950",
+    "character_index": 5
+  }
+}
