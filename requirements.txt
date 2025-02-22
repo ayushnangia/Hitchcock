@@ -1,0 +1,13 @@
+pydantic
+modal
+diffusers
+torch
+moviepy
+python-dotenv
+fastapi
+uvicorn
+pillow
+transformers
+accelerate
+safetensors
+pydantic-settings
