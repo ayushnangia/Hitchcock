@@ -93,7 +93,7 @@ def extract_attribute(text: str, pattern: str) -> str:
     match = re.search(pattern, text, re.IGNORECASE)
     return match.group(0).strip() if match else ""
 
-async def generate_character_image(characters: list[CharacterDescription], index: int, session_id: str, scene_prompt: str = None) -> None:
+async def generate_character_image(characters: list[CharacterDescription], index: int, session_id: str, scene_prompt: str = None, shot_id: str = None) -> None:
     try:
         # Create a merged prompt that includes both scene and character details
         if scene_prompt:
@@ -175,7 +175,7 @@ async def generate_character_image(characters: list[CharacterDescription], index
                         if scene_prompt:
                             # For scenes, include all character names in filename
                             char_names = "_".join(char.name.lower() for char in characters)
-                            filename = f"scene_{char_names}_{session_id}.jpg"
+                            filename = f"{shot_id}.jpg"
                         else:
                             # For individual portraits
                             filename = f"character_{index}_{characters[0].name.lower()}_{session_id}.jpg"
@@ -284,7 +284,6 @@ async def generate_test_image(scene_panel: ScenePanel = None):
             f"with {char.demeanor['movement'] or 'natural'} movements and "
             f"{char.demeanor['expression'] or 'neutral'} expression. "
         )
-        breakpoint()
     
     print(f"\n📝 Generated Scene Description:")
     print(scene_description)
@@ -294,7 +293,8 @@ async def generate_test_image(scene_panel: ScenePanel = None):
         characters=scene_characters,
         index=1,
         session_id=session_id,
-        scene_prompt=scene_description
+        scene_prompt=scene_description,
+        shot_id=scene_panel.panel_id
     )
 
     print(f"\n✨ Generation session completed!")

@@ -31,6 +31,7 @@ class CharacterDescription(HitchcockBaseModel):
     )
 
 class ScenePanel(HitchcockBaseModel):
+    scene_id: str
     panel_id: str
     description: str
     visuals: Dict[str, str] = Field(

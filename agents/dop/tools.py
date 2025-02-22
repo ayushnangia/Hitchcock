@@ -45,6 +45,7 @@ async def generate_shot_images(
             
         # Create ScenePanel from shot spec, using overrides where provided
         scene_panel = ScenePanel(
+            scene_id=shot_spec.scene_id,
             panel_id=shot_spec.shot_id,
             description=shot_spec.description,
             visuals={
