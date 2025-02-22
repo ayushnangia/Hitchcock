@@ -29,7 +29,7 @@ AUTHORIZED_IMPORTS = [
     "csv"
 ]
 
-class ScriptWriterAgent:
+class ScriptWriterResearchAgent:
     """Agent for writing movie scripts with integrated research capabilities"""
     
     def __init__(

@@ -1,4 +1,4 @@
-from .agent import ScriptWriterAgent
-from .tools import ResearchCriteria, ScriptResearchTools
+from .research_agent import ScriptWriterResearchAgent
+from .tools import get_script_with_research
 
-__all__ = ['ScriptWriterAgent', 'ResearchCriteria', 'ScriptResearchTools'] 
+__all__ = ['ScriptWriterResearchAgent', 'get_script_with_research'] 
