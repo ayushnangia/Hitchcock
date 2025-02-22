@@ -37,10 +37,12 @@ def main():
     team = AgentManager()
     team.register_agent(story_writer)
     team.register_agent(story_boarder)
+    team.register_agent(dop)
 
     # activate the agents
     story_writer.activate()
     story_boarder.activate()
+    dop.activate()
 
     server = ServerManager(team)
     server.run()
