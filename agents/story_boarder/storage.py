@@ -1,7 +1,7 @@
 import json
 import os
 from typing import List, Optional
-from .tools import ScriptScene, SceneAnalysis, VisualPlan
+from .tools import ScriptScene, SceneAnalysis, VisualPlan, ShotImageSpec
 
 class StoryboardStorage:
     """Handles persistent storage for storyboard pipeline data"""
@@ -18,6 +18,9 @@ class StoryboardStorage:
         
     def _get_visual_plan_file_path(self) -> str:
         return os.path.join(self.storage_dir, "visual_plans.json")
+
+    def _get_shot_specs_file_path(self) -> str:
+        return os.path.join(self.storage_dir, "shot_image_specs.json")
     
     def save_scenes(self, scenes: List[ScriptScene]) -> None:
         """Save scene data to file"""
@@ -70,4 +73,9 @@ class StoryboardStorage:
                 data = json.load(f)
                 return [VisualPlan(**plan_data) for plan_data in data]
         except FileNotFoundError:
-            return [] 
+            return []
+
+    def save_shot_image_specs(self, specs: List[ShotImageSpec]) -> None:
+        """Save shot image specifications to file"""
+        with open(self._get_shot_specs_file_path(), 'w') as f:
+            json.dump([spec.model_dump() for spec in specs], f, indent=2) 

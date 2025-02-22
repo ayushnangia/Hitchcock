@@ -42,6 +42,25 @@ class SceneAnalysis(BaseModel):
     pacing: str  # slow, medium, fast
     time_of_day: str
 
+class ShotImageSpec(BaseModel):
+    """Specification for generating an image for a shot"""
+    scene_id: str
+    shot_id: str  # Will be auto-generated as scene_id + shot number
+    description: str  # Combined description of the shot and scene
+    camera_specs: Dict[str, str] = {
+        "type": "",  # wide shot, medium shot, close-up, etc.
+        "movement": "",  # pan, tilt, dolly, static, etc.
+        "focus": ""  # what/who to focus on
+    }
+    visual_elements: Dict[str, str] = {
+        "lighting": "",  # lighting setup
+        "atmosphere": "",  # overall mood/atmosphere
+        "time_of_day": ""
+    }
+    props: List[str]  # key props that must be visible
+    special_effects: List[str]  # special effects to include
+    characters: List[str]  # characters present in the shot
+
 # Initialize storage
 storage = StoryboardStorage()
 
@@ -225,6 +244,64 @@ def plan_visual_elements() -> None:
     # Save visual plans to storage
     storage.save_visual_plans(visual_plans)
 
+def create_shot_image_specs() -> str:
+    """
+    Creates and saves comprehensive specifications for image generation for each shot.
+    Combines scene, analysis, and visual plan information to generate detailed shot specs.
+    Saves the specs to storage for use by the image generation agent.
+    """
+    # Load all necessary data
+    scenes = storage.load_scenes()
+    analyses = storage.load_scene_analyses()
+    visual_plans = storage.load_visual_plans()
+    
+    # Create a lookup dictionary for scenes and visual plans
+    scene_dict = {scene.scene_id: scene for scene in scenes}
+    visual_plan_dict = {plan.scene_id: plan for plan in visual_plans}
+    
+    shot_specs = []
+    
+    # Process each scene analysis
+    for analysis in analyses:
+        scene = scene_dict.get(analysis.scene_id)
+        visual_plan = visual_plan_dict.get(analysis.scene_id)
+        
+        if not scene or not visual_plan:
+            continue
+            
+        # Process each shot in the scene
+        for i, shot in enumerate(analysis.shots):
+            # Create a unique shot ID
+            shot_id = f"{analysis.scene_id}_shot_{i+1}"
+            
+            # Combine descriptions for more context
+            combined_description = f"Scene: {scene.description}\nShot: {shot.description}"
+            
+            # Create the shot specification
+            spec = ShotImageSpec(
+                scene_id=analysis.scene_id,
+                shot_id=shot_id,
+                description=combined_description,
+                camera_specs={
+                    "type": shot.camera,
+                    "movement": shot.camera_movement,
+                    "focus": shot.focus
+                },
+                visual_elements={
+                    "lighting": visual_plan.lighting,
+                    "atmosphere": visual_plan.atmosphere,
+                    "time_of_day": analysis.time_of_day
+                },
+                props=visual_plan.props,
+                special_effects=visual_plan.special_effects,
+                characters=scene.characters
+            )
+            shot_specs.append(spec)
+    
+    # Save the shot specs to storage
+    storage.save_shot_image_specs(shot_specs)
+    return f"I have saved {len(shot_specs)} shot image specifications to data/storyboard/shot_image_specs.json"
+
 tools = [
     {
         "tool": {
@@ -272,5 +349,20 @@ tools = [
             }
         },
         "function": plan_visual_elements,
+    },
+    {
+        "tool": {
+            "type": "function",
+            "function": {
+                "name": "create_shot_image_specs",
+                "description": "Create and save comprehensive specifications for generating images for each shot",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        },
+        "function": create_shot_image_specs,
     }
 ]
