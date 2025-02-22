@@ -4,6 +4,7 @@ from models.scene import ScenePanel, CameraAngle
 from agents.story_boarder.storage import StoryboardStorage
 from agents.story_boarder.tools import ShotImageSpec
 from agents.dop.image_service import generate_test_image
+from agents.dop.generate_story_video import generate_story_video_for_image
 
 def generate_shot_images(
     lighting: str = None,
@@ -32,8 +33,7 @@ def generate_shot_images(
     
     # Default values
     size = (1024, 1024)
-    output_dir = Path.home() / "hitchcock_output"
-    
+
     for shot_spec in shot_specs:
         # Convert camera type to CameraAngle enum
         # Default to WIDE if camera type not recognized
@@ -57,10 +57,11 @@ def generate_shot_images(
             camera_angle=camera_angle_enum,
             character_focus=character_focus or shot_spec.characters
         )
-        
-        generate_test_image(scene_panel)
+
+        generate_test_image()
+        generate_story_video_for_image(scene_panel)
     
-    return f"I have created {len(shot_specs)} images in this directory: {output_dir}"
+    return f"I have created {len(shot_specs)} images and story videos in this directory: output/videos directory"
 
 # Add the image generation tool to the list of available tools
 tools = [

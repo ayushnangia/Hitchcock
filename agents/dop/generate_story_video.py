@@ -1,7 +1,6 @@
-import asyncio
 from datetime import datetime
-from services.video import VideoService
-from models.scene import ScenePanel, CameraAngle, CharacterDescription
+from agents.dop.services.video import VideoService
+from agents.dop.models.scene import ScenePanel, CharacterDescription
 import json
 import os
 from pathlib import Path
@@ -30,7 +29,19 @@ async def verify_image_path(path: str) -> bool:
         print(f"⚠️ Error checking image {path}: {str(e)}")
         return False
 
-async def main():
+def find_image_path(character: str) -> str:
+    # find the image paths for the individual characters from the output directory.
+    # the file paths will have the name of the character in them.
+    # the characters are named gears, shouldered, picks, tall, and muscular.
+    base_path = Path(os.getcwd())
+    # walk the directory and find the file that contains the character name
+    for file in base_path.glob("**/*"):
+        if character in file.name:
+            return str(file)
+    return None
+    
+
+async def generate_story_video_for_image(scene: ScenePanel):
     # Initialize service
     video_service = VideoService()
     
@@ -38,27 +49,17 @@ async def main():
     session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     print(f"🆔 Session ID: {session_id}")
 
-    # Define scene
-    scene = ScenePanel(
-        panel_id="scene_001",
-        description="explores a vast steampunk laboratory filled with whirring machines and floating gears",
-        visuals={
-            "lighting": "Warm copper tones with steam effects",
-            "colors": "Rich browns and metallic accents",
-            "key_elements": "Steam-powered machinery, floating gears, brass instruments"
-        },
-        camera_angle=CameraAngle.WIDE,
-        character_focus=["gears", "shouldered", "picks", "tall", "muscular"]
-    )
-
     # Character image paths (from previous generation)
     base_path = Path(os.getcwd())
+    # find the image paths for the individual characters from the output directory.
+    # the file paths will have the name of the character in them.
+    # the characters are named gears, shouldered, picks, tall, and muscular.
     character_images = {
-        "gears": str(base_path / "output/images/character_1_gears_20250222_184950.jpg"),
-        "shouldered": str(base_path / "output/images/character_2_shouldered_20250222_184950.jpg"),
-        "picks": str(base_path / "output/images/character_3_picks_20250222_184950.jpg"),
-        "tall": str(base_path / "output/images/character_4_tall_20250222_184950.jpg"),
-        "muscular": str(base_path / "output/images/character_5_muscular_20250222_184950.jpg")
+        "gears": find_image_path("gears"),
+        "shouldered": find_image_path("shouldered"),
+        "picks": find_image_path("picks"),
+        "tall": find_image_path("tall"),
+        "muscular": find_image_path("muscular")
     }
 
     # Verify all images exist and are accessible
@@ -152,7 +153,3 @@ async def main():
     
     except Exception as e:
         print(f"\n❌ Error during video generation: {str(e)}")
-
-if __name__ == "__main__":
-    print("🚀 Starting video generation process...")
-    asyncio.run(main())

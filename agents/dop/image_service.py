@@ -204,7 +204,3 @@ async def generate_test_image():
     print(f"\n✨ Generation session completed!")
     print(f"📁 Images saved in: {IMAGE_DIR}")
     print(f"📄 Metadata saved in: {METADATA_DIR}")
-
-if __name__ == "__main__":
-    print("🚀 Starting character extraction and generation test...")
-    asyncio.run(generate_test_image()) 
