@@ -1,0 +1,30 @@
+{
+  "character": {
+    "name": "shouldered",
+    "age": "adult",
+    "gender": "unspecified",
+    "physical_appearance": {
+      "build": "muscular",
+      "height": "",
+      "hair": "hair is pulled back",
+      "eyes": "eyes are mechanical constructs glowing electric blue",
+      "skin": "skin and burn scars"
+    },
+    "clothing": {
+      "outfit": "steampunk attire",
+      "accessories": "accessories include protective goggles with multiple lenses and a mechanical arm with built-in tools",
+      "details": "standard details"
+    },
+    "demeanor": {
+      "posture": "posture is powerful and grounded",
+      "movement": "movements are deliberate and strong",
+      "expression": "expression shows focused concentration with a hint of pride"
+    }
+  },
+  "generation": {
+    "timestamp": "2025-02-22T18:50:20.493511",
+    "image_path": "output/images/character_2_shouldered_20250222_184950.jpg",
+    "session_id": "20250222_184950",
+    "character_index": 2
+  }
+}
