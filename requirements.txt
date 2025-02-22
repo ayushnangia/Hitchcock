@@ -1,12 +1,12 @@
 pydantic
-modal
+modal==0.56.4374
 diffusers
-torch
+torch>=2.0.0
 moviepy
 python-dotenv
 fastapi
 uvicorn
-pillow
+pillow==10.2.0
 transformers
 accelerate
 safetensors

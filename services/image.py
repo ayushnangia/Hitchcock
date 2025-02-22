@@ -1,255 +1,230 @@
-from pathlib import Path
-from typing import Dict, List, Tuple
 import modal
 import torch
-from diffusers import (
-    StableDiffusionXLPipeline,
-    StableDiffusionXLImg2ImgPipeline,
-    AutoencoderKL,
-    EulerDiscreteScheduler,
-    UniPCMultistepScheduler
-)
-from models import (
-    ScenePanel,
-    CharacterDescription,
-    AssetResult,
-    AssetType
-)
-from config import settings
+from PIL import Image
+import io
+import random
+from pathlib import Path
+from typing import Dict, Optional, Tuple
+from models.scene import ScenePanel, CharacterDescription
+from fastapi.responses import Response
+from huggingface_hub import snapshot_download
 
-# Initialize Modal app and define constants
-TIMEOUT = 60 * 30  # 30 minutes
-MODEL_DIR = "/model"
-OUTPUT_DIR = "/output"
-CACHE_DIR = "/cache"
+# Constants
+CACHE_PATH = "/model_cache"
+OUTPUT_PATH = "/output_data"
+MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
+MINUTES = 60
 
-# Create the Modal app
+def download_model():
+    """Download model files into the image."""
+    import torch
+    from diffusers import AutoPipelineForText2Image
+    
+    # Download model files
+    AutoPipelineForText2Image.from_pretrained(
+        MODEL_ID,
+        torch_dtype=torch.float16,
+        variant="fp16",
+        use_safetensors=True
+    )
+
+# Create Modal app
 app = modal.App("hitchcock-image")
 
-# Create persistent volumes
-model_volume = modal.Volume.from_name("hitchcock-model", create_if_missing=True)
-output_volume = modal.Volume.from_name("hitchcock-output", create_if_missing=True)
-cache_volume = modal.Volume.from_name("hitchcock-cache", create_if_missing=True)
-
-# Define the container image with all dependencies
-image = (
-    modal.Image.debian_slim(python_version="3.10")
-    .apt_install(["libgl1-mesa-glx", "libglib2.0-0"])  # System dependencies
+# Create image with required dependencies
+image = (modal.Image.debian_slim()
     .pip_install(
         "torch",
         "diffusers",
         "transformers",
         "accelerate",
         "safetensors",
-        "xformers",
-        "invisible-watermark>=0.2.0",
         "pydantic",
-        "pydantic-settings"
+        "fastapi",
+        "huggingface-hub"
     )
-    .env({
-        "HF_HOME": CACHE_DIR,
-        "HUGGING_FACE_HUB_CACHE": CACHE_DIR,
-        "TRANSFORMERS_CACHE": f"{CACHE_DIR}/transformers",
-        "TORCH_HOME": f"{CACHE_DIR}/torch",
-        "DIFFUSERS_CACHE": f"{CACHE_DIR}/diffusers"
-    })
+    .run_function(download_model)
+    # Add local source files last
+    .add_local_python_source("models")
 )
+
+# Create volumes with create_if_missing to handle first run
+cache_volume = modal.Volume.from_name("model-cache-vol", create_if_missing=True)
+output_volume = modal.Volume.from_name("output-data-vol", create_if_missing=True)
 
 @app.cls(
     image=image,
-    gpu="A100:4",
+    gpu="A100",
     volumes={
-        MODEL_DIR: model_volume,
-        OUTPUT_DIR: output_volume,
-        CACHE_DIR: cache_volume
+        CACHE_PATH: cache_volume,
+        OUTPUT_PATH: output_volume
     },
-    timeout=TIMEOUT
+    timeout=10 * MINUTES
 )
 class ImageGenerator:
-    def __enter__(self):
-        """Initialize resources when entering the context."""
-        model_volume.reload()
-        cache_volume.reload()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Cleanup resources when exiting the context."""
-        if hasattr(self, 'pipe'):
-            del self.pipe
-            if hasattr(self, 'refiner'):
-                del self.refiner
-            torch.cuda.empty_cache()
-
     @modal.enter()
-    def initialize_model(self):
-        """Initialize the model when the container starts."""
-        try:
-            # Use UniPC scheduler for better quality and speed
-            scheduler = UniPCMultistepScheduler.from_config({
-                "beta_start": settings.model.beta_start,
-                "beta_end": settings.model.beta_end,
-                "beta_schedule": settings.model.beta_schedule,
-                "timestep_spacing": settings.model.timestep_spacing,
-                "steps_offset": settings.model.steps_offset
-            })
+    def enter(self):
+        """Initialize the model when container starts."""
+        import os
+        from diffusers import AutoPipelineForText2Image
+        
+        # Create directories
+        os.makedirs(CACHE_PATH, exist_ok=True)
+        os.makedirs(OUTPUT_PATH, exist_ok=True)
+        
+        print("Initializing SDXL pipeline...")
+        # Initialize pipeline
+        self.pipeline = AutoPipelineForText2Image.from_pretrained(
+            MODEL_ID,
+            torch_dtype=torch.float16,
+            variant="fp16",
+            use_safetensors=True,
+            cache_dir=CACHE_PATH
+        ).to("cuda")
+        
+        print("Pipeline initialization complete!")
 
-            # Load improved VAE
-            vae = AutoencoderKL.from_pretrained(
-                "madebyollin/sdxl-vae-fp16-fix",
-                torch_dtype=torch.float16,
-                use_safetensors=True
-            )
-
-            # Load base model with optimizations
-            self.pipe = StableDiffusionXLPipeline.from_pretrained(
-                "stabilityai/stable-diffusion-xl-base-1.0",
-                vae=vae,
-                scheduler=scheduler,
-                cache_dir=MODEL_DIR,
-                torch_dtype=torch.float16,
-                variant="fp16",
-                use_safetensors=True
-            ).to("cuda")
-
-            # Load refiner for enhanced details
-            self.refiner = StableDiffusionXLImg2ImgPipeline.from_pretrained(
-                "stabilityai/stable-diffusion-xl-refiner-1.0",
-                cache_dir=MODEL_DIR,
-                torch_dtype=torch.float16,
-                variant="fp16",
-                use_safetensors=True
-            ).to("cuda")
-
-            # Enable optimizations
-            self.pipe.enable_vae_tiling()
-            self.pipe.enable_xformers_memory_efficient_attention()
-            self.refiner.enable_vae_tiling()
-            self.refiner.enable_xformers_memory_efficient_attention()
-            
-            if settings.model.enable_cpu_offload:
-                self.pipe.enable_model_cpu_offload()
-                self.refiner.enable_model_cpu_offload()
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to initialize model: {str(e)}")
-
-    def _generate_prompt(
+    def _construct_prompt(
         self,
         scene: ScenePanel,
-        characters: Dict[str, CharacterDescription]
-    ) -> str:
-        """Generate a detailed prompt for the image generation model."""
-        character_descriptions = []
-        for char_name in scene.character_focus:
-            if char_name in characters:
-                char = characters[char_name]
-                desc = (
-                    f"{char.name}: {char.physical_appearance.get('build', '')} "
-                    f"with {char.physical_appearance.get('hair', '')} hair, "
-                    f"wearing {char.clothing.get('outfit', '')}, "
-                    f"{char.demeanor.get('posture', '')}"
-                )
-                character_descriptions.append(desc)
-        
-        prompt = (
-            f"{scene.description} "
-            f"Camera angle: {scene.camera_angle}, "
-            f"Lighting: {scene.visuals.get('lighting', '')}, "
-            f"Characters: {', '.join(character_descriptions)}"
-        )
-        return prompt.strip()
+        character_specs: Dict[str, CharacterDescription]
+    ) -> Tuple[str, str]:
+        """Construct the prompt and negative prompt from the scene and character specs."""
+        # Base prompt from scene description
+        prompt = scene.description
+
+        # Add visual elements
+        if scene.visuals:
+            prompt += f", {scene.visuals.get('lighting', '')}"
+            prompt += f", {scene.visuals.get('colors', '')}"
+            prompt += f", {scene.visuals.get('key_elements', '')}"
+            prompt += f", {scene.visuals.get('mood', '')}"
+
+        # Add camera angle
+        prompt += f", {scene.camera_angle.value} shot"
+
+        # Add character details if specified
+        for char_id in scene.character_focus:
+            if char_id in character_specs:
+                char = character_specs[char_id]
+                prompt += f", {char.name} wearing {', '.join(char.clothing.values())}"
+                prompt += f", {', '.join(char.physical_appearance.values())}"
+
+        # Standard negative prompt for high quality output
+        negative_prompt = "blurry, low quality, distorted, deformed, ugly, bad anatomy"
+
+        return prompt, negative_prompt
 
     @modal.method()
-    def generate_image(
+    def generate(
         self,
         scene: ScenePanel,
-        characters: Dict[str, CharacterDescription],
-        output_path: str,
-        size: Tuple[int, int] = None,
-        num_images: int = 1
-    ) -> AssetResult:
-        """Generate an image for a specific scene panel."""
+        character_specs: Dict[str, CharacterDescription],
+        size: Tuple[int, int] = (1024, 1024),
+        num_images: int = 1,
+        num_inference_steps: int = 30,
+        guidance_scale: float = 7.5,
+        seed: int = None
+    ) -> Dict:
+        """Generate images from a scene description using SDXL"""
         try:
-            # Set default size if not provided
-            if size is None:
-                size = (
-                    settings.model.default_image_width,
-                    settings.model.default_image_height
-                )
-
-            # Generate prompt
-            prompt = self._generate_prompt(scene, characters)
-            negative_prompt = (
-                "blurry, low quality, distorted, deformed, ugly, duplicate, "
-                "morbid, mutilated, poorly drawn face, bad anatomy, extra limbs"
-            )
-
-            # First pass with base model
-            base_output = self.pipe(
+            # Set random seed if provided
+            if seed is not None:
+                torch.manual_seed(seed)
+                print(f"Using seed: {seed}")
+            
+            # Construct the prompt
+            prompt, negative_prompt = self._construct_prompt(scene, character_specs)
+            print(f"Generated prompt: {prompt}")
+            
+            # Generate the image
+            result = self.pipeline(
                 prompt=prompt,
                 negative_prompt=negative_prompt,
-                num_inference_steps=40,
-                guidance_scale=7.5,
                 width=size[0],
                 height=size[1],
                 num_images_per_prompt=num_images,
-                output_type="latent"
+                num_inference_steps=num_inference_steps,
+                guidance_scale=guidance_scale,
             )
-
-            # Refine the output
-            refined_output = self.refiner(
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                num_inference_steps=30,
-                guidance_scale=7.5,
-                image=base_output.images,
-                strength=0.3
-            )
-
-            # Save image to volume
-            image = refined_output.images[0]
-            filename = f"{scene.panel_id}.png"
-            output_path = Path(OUTPUT_DIR) / filename
-            image.save(str(output_path))
-            output_volume.commit()
-
-            return AssetResult(
-                scene_id=scene.panel_id,
-                asset_type=AssetType.IMAGE,
-                storage_path=str(output_path),
-                generation_metadata={
-                    "model_version": "SDXL-1.0 + Refiner",
-                    "base_steps": "40",
-                    "refiner_steps": "30",
-                    "guidance_scale": "7.5",
-                    "refiner_strength": "0.3",
-                    "vae": "sdxl-vae-fp16-fix",
-                    "scheduler": "UniPC",
+            
+            # Save images and return metadata
+            output_paths = []
+            for idx, image in enumerate(result.images):
+                filename = f"scene_{scene.panel_id}.png"
+                if num_images > 1:
+                    filename = f"scene_{scene.panel_id}_{idx}.png"
+                
+                filepath = str(Path(OUTPUT_PATH) / filename)
+                image.save(filepath, format='PNG')
+                output_paths.append(filename)
+                print(f"Saved image: {filepath}")
+                
+                # Commit after each save to ensure no data loss
+                output_volume.commit()
+                
+            # Clear CUDA cache to reduce memory fragmentation
+            torch.cuda.empty_cache()
+            
+            return {
+                "filenames": output_paths,
+                "generation_metadata": {
+                    "prompt": prompt,
+                    "negative_prompt": negative_prompt,
                     "size": f"{size[0]}x{size[1]}",
-                    "prompt": prompt
+                    "num_inference_steps": num_inference_steps,
+                    "guidance_scale": guidance_scale,
+                    "seed": seed
                 }
-            )
-
+            }
         except Exception as e:
-            raise RuntimeError(f"Image generation failed: {str(e)}")
+            print(f"Error during image generation: {str(e)}")
+            raise
+
+    @modal.web_endpoint(method="POST")
+    def api(
+        self,
+        scene: ScenePanel,
+        character_specs: Dict[str, CharacterDescription] = None,
+        seed: int = None
+    ):
+        """Web endpoint for image generation"""
+        try:
+            print(f"Received API request for scene: {scene.panel_id}")
+            result = self.generate.local(
+                scene=scene,
+                character_specs=character_specs or {},
+                num_images=1,
+                seed=seed
+            )
+            
+            # Return the first generated image
+            filepath = str(Path(OUTPUT_PATH) / result['filenames'][0])
+            with open(filepath, "rb") as f:
+                image_bytes = f.read()
+            print(f"Returning generated image: {filepath}")
+            return Response(content=image_bytes, media_type="image/png")
+        except Exception as e:
+            print(f"Error in API endpoint: {str(e)}")
+            raise
 
 @app.function(
-    image=image,
-    volumes={OUTPUT_DIR: output_volume},
-    timeout=300  # 5 minutes
+    image=image,  # Use the same image with models source
+    volumes={OUTPUT_PATH: output_volume}  # Only need output volume for this function
 )
 def text_to_image(
     scene: ScenePanel,
-    character_specs: Dict[str, CharacterDescription],
-    size: tuple[int, int] = (1024, 1024),
-    num_images: int = 1
-) -> AssetResult:
-    """Generate an image from a scene description."""
-    with ImageGenerator() as generator:
-        return generator.generate_image.remote(
-            scene=scene,
-            characters=character_specs,
-            output_path=f"scene_{scene.panel_id}.png",
-            size=size,
-            num_images=num_images
-        )
+    character_specs: Dict[str, CharacterDescription] = None,
+    size: Tuple[int, int] = (1024, 1024),
+    num_images: int = 1,
+    seed: int = None
+) -> Dict:
+    """Convenience function to generate images from a scene description."""
+    generator = ImageGenerator()
+    return generator.generate(
+        scene=scene,
+        character_specs=character_specs or {},
+        size=size,
+        num_images=num_images,
+        seed=seed
+    )

@@ -5,6 +5,8 @@ from pathlib import Path
 import modal
 from models.scene import ScenePanel
 import time
+from PIL import Image
+import io
 
 def generate_image(
     description: str,
