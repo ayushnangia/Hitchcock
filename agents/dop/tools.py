@@ -1,12 +1,11 @@
 from typing import Dict, List
 from pathlib import Path
-from models.scene import ScenePanel, CameraAngle
-from agents.story_boarder.storage import StoryboardStorage
-from agents.story_boarder.tools import ShotImageSpec
+from agents.dop.models.scene import ScenePanel, CameraAngle
 from agents.dop.image_service import generate_test_image
 from agents.dop.generate_story_video import generate_story_video_for_image
+from agents.story_boarder.storage import StoryboardStorage
 
-def generate_shot_images(
+async def generate_shot_images(
     lighting: str = None,
     colors: str = None,
     camera_angle: str = None,
@@ -58,8 +57,8 @@ def generate_shot_images(
             character_focus=character_focus or shot_spec.characters
         )
 
-        generate_test_image()
-        generate_story_video_for_image(scene_panel)
+        await generate_test_image()
+        # await generate_story_video_for_image(scene_panel)
     
     return f"I have created {len(shot_specs)} images and story videos in this directory: output/videos directory"
 
