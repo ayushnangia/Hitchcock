@@ -2,7 +2,7 @@ import os
 from typing import List, TYPE_CHECKING
 # TYPE CHECKING
 if TYPE_CHECKING:
-    from .tools import ScriptScene, SceneAnalysis, VisualPlan, ShotImageSpec
+    from .models import ScriptScene, SceneAnalysis, VisualPlan, ShotImageSpec
 from .db_client import StoryboardDBClient
 
 class StoryboardStorage:

@@ -2,8 +2,9 @@ import sqlite3
 from typing import List, Optional, Dict, TYPE_CHECKING
 from contextlib import contextmanager
 import os
+from .models import ScriptScene, Shot, SceneAnalysis, VisualPlan, ShotImageSpec
 if TYPE_CHECKING:
-    from .tools import ScriptScene, SceneAnalysis, VisualPlan, ShotImageSpec, Shot
+    from .tools import SceneAnalysis, VisualPlan, ShotImageSpec, Shot
 
 class StoryboardDBClient:
     """SQLite database client for storyboard pipeline data"""
@@ -154,6 +155,17 @@ class StoryboardDBClient:
                     shot_id TEXT,
                     character_name TEXT NOT NULL,
                     FOREIGN KEY (shot_id) REFERENCES shot_image_specs(shot_id)
+                )
+            """)
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS script_characters (
+                    character_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    traits TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             
@@ -679,3 +691,30 @@ class StoryboardDBClient:
                 'has_visual_plan': self.get_visual_plan_by_id(scene_id) is not None,
                 'shot_spec_count': len(self.get_shot_specs_by_scene_id(scene_id))
             } 
+
+    def save_script_characters(self, characters: List[Dict[str, str]]) -> None:
+        """Save character information to database"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            for character in characters:
+                cursor.execute("""
+                    INSERT INTO script_characters (name, description, role, traits)
+                    VALUES (?, ?, ?, ?)
+                """, (character['name'], character['description'], 
+                     character['role'], character['traits']))
+            conn.commit()
+
+    def load_script_characters(self) -> List[Dict[str, str]]:
+        """Load all character information from database"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM script_characters")
+            characters = []
+            for row in cursor.fetchall():
+                characters.append({
+                    'name': row['name'],
+                    'description': row['description'],
+                    'role': row['role'],
+                    'traits': row['traits']
+                })
+            return characters 

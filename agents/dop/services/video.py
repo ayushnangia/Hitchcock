@@ -2,8 +2,8 @@ import asyncio
 import fal_client
 import aiohttp
 from typing import List, Dict, Optional
-from models.scene import StoryboardRequest, ScenePanel, CameraAngle, CharacterDescription
-from models.assets import AssetResult, AssetType, ProcessingResponse
+from agents.dop.models.scene import StoryboardRequest, ScenePanel, CameraAngle, CharacterDescription
+from agents.dop.models.assets import AssetResult, AssetType, ProcessingResponse
 import os
 import json
 from datetime import datetime

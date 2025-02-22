@@ -1,75 +1,22 @@
 from typing import Dict, List
-from dataclasses import dataclass
-from pydantic import BaseModel
 import instructor
 from openai import OpenAI
 from agents.story_boarder.storage import StoryboardStorage
 from pathlib import Path
-
-class ScriptScene(BaseModel):
-    """Basic scene information"""
-    scene_id: str
-    title: str
-    script_text: str
-    importance: str  # "critical", "high", "medium", "low"
-    characters: List[str]
-    description: str
-
-@dataclass
-class VisualPlan:
-    """Visual elements for a scene"""
-    scene_id: str
-    lighting: str
-    props: List[str]
-    atmosphere: str
-    special_effects: List[str]
-
-class Shot(BaseModel):
-    """Individual shot information"""
-    type: str  # establishing, action, reaction, detail, etc.
-    camera: str  # wide shot, medium shot, close-up, etc.
-    description: str
-    duration: str  # approximate duration like "3-4 seconds", "5-7 seconds"
-    camera_movement: str = ""  # pan, tilt, dolly, static, etc.
-    focus: str = ""  # what to focus on in this shot
-
-class SceneAnalysis(BaseModel):
-    """Analysis of a scene including shots"""
-    scene_id: str
-    key_moments: List[str]
-    shots: List[Shot]
-    setting: str
-    mood: str
-    pacing: str  # slow, medium, fast
-    time_of_day: str
-
-class ShotImageSpec(BaseModel):
-    """Specification for generating an image for a shot"""
-    scene_id: str
-    shot_id: str  # Will be auto-generated as scene_id + shot number
-    description: str  # Combined description of the shot and scene
-    camera_specs: Dict[str, str] = {
-        "type": "",  # wide shot, medium shot, close-up, etc.
-        "movement": "",  # pan, tilt, dolly, static, etc.
-        "focus": ""  # what/who to focus on
-    }
-    visual_elements: Dict[str, str] = {
-        "lighting": "",  # lighting setup
-        "atmosphere": "",  # overall mood/atmosphere
-        "time_of_day": ""
-    }
-    props: List[str]  # key props that must be visible
-    special_effects: List[str]  # special effects to include
-    characters: List[str]  # characters present in the shot
+from .models import ScriptScene, Shot, SceneAnalysis, VisualPlan, ShotImageSpec
 
 # Initialize storage
 storage = StoryboardStorage()
 
-def plan_storyboard_scenes(script_text: str) -> None:
+def plan_storyboard_scenes() -> str:
     """
     Break down script into scenes and identify important ones to storyboard.
     Saves scenes to storage instead of returning them.
     """
+    # get script text from file
+    with open("data/script_writer/script.txt", "r") as f:
+        script_text = f.read()
+
     # Initialize OpenAI client with instructor
     client = instructor.patch(OpenAI())
     
@@ -90,7 +37,7 @@ def plan_storyboard_scenes(script_text: str) -> None:
     try:
         # Use OpenAI to generate scene breakdowns
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             response_model=List[ScriptScene],
             messages=[
                 {"role": "system", "content": "You are a professional script analyst breaking down scripts into structured scene information."},
@@ -115,7 +62,9 @@ def plan_storyboard_scenes(script_text: str) -> None:
         ]
         storage.save_scenes(fallback_scenes)
 
-def analyze_script_scenes() -> None:
+    return f"I have saved {len(response)} scenes to the database"
+
+def analyze_script_scenes() -> str:
     """
     Analyze scenes to identify key moments and plan shots.
     Loads scenes from storage and saves analyses back to storage.
@@ -127,7 +76,8 @@ def analyze_script_scenes() -> None:
     scenes = storage.load_scenes()
 
     for scene in scenes:
-        if scene.importance in ["critical", "high"]:  # Only analyze important scenes
+        # if scene.importance in ["critical", "high"]:  # Only analyze important scenes
+        if True:
             # Create prompt for scene analysis
             prompt = f"""
             Analyze this scene and break it down into key moments and shots. The scene information is:
@@ -135,6 +85,7 @@ def analyze_script_scenes() -> None:
             Title: {scene.title}
             Description: {scene.description}
             Characters: {', '.join(scene.characters)}
+            Scene ID: {scene.scene_id}
             Script:
             {scene.script_text}
             
@@ -154,7 +105,7 @@ def analyze_script_scenes() -> None:
             try:
                 # Get scene analysis from OpenAI
                 analysis = client.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-4o-mini",
                     response_model=SceneAnalysis,
                     messages=[
                         {"role": "system", "content": "You are a professional storyboard artist and cinematographer breaking down scenes into detailed shot sequences."},
@@ -192,11 +143,14 @@ def analyze_script_scenes() -> None:
                     time_of_day="day"
                 )
                 analyses.append(fallback)
+        break
 
     # Save analyses to storage
     storage.save_scene_analyses(analyses)
 
-def plan_visual_elements() -> None:
+    return f"I have saved {len(analyses)} scene analyses to the database"
+
+def plan_visual_elements() -> str:
     """
     Plan visual elements for each scene based on their analysis.
     Loads scene analyses from storage and saves visual plans back to storage.
@@ -213,6 +167,7 @@ def plan_visual_elements() -> None:
         Setting: {analysis.setting}
         Mood: {analysis.mood}
         Time of Day: {analysis.time_of_day}
+        Scene ID: {analysis.scene_id}
         
         Create a visual plan with:
         1. Lighting setup appropriate for the setting and mood
@@ -223,7 +178,7 @@ def plan_visual_elements() -> None:
 
         try:
             plan = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 response_model=VisualPlan,
                 messages=[
                     {"role": "system", "content": "You are a cinematographer planning visual elements for film scenes."},
@@ -244,6 +199,8 @@ def plan_visual_elements() -> None:
 
     # Save visual plans to storage
     storage.save_visual_plans(visual_plans)
+
+    return f"I have saved {len(visual_plans)} visual plans to the database"
 
 def create_shot_image_specs() -> str:
     """
@@ -301,7 +258,7 @@ def create_shot_image_specs() -> str:
     
     # Save the shot specs to storage
     storage.save_shot_image_specs(shot_specs)
-    return f"I have saved {len(shot_specs)} shot image specifications to data/storyboard/shot_image_specs.json"
+    return f"I have saved {len(shot_specs)} shot image specifications to the database"
 
 def critique_generated_images() -> str:
     """
@@ -326,10 +283,8 @@ tools = [
                 "description": "Break down script into scenes and identify important ones",
                 "parameters": {
                     "type": "object",
-                    "properties": {
-                        "script_text": {"type": "string", "description": "Full script text"}
-                    },
-                    "required": ["script_text"]
+                    "properties": {},
+                    "required": []
                 }
             }
         },

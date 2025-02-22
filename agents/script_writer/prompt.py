@@ -21,6 +21,9 @@ When given a writing task:
    - Cultural authenticity
    - Period-appropriate details
 
+Once you're done with the script generation, inform the story boarder agent to create a storyboard. Always do that, and you can
+use the chat_with_agent tool for it.
+
 Wait for specific requests before taking action. Use your research tools to gather information before writing.
 """
 
