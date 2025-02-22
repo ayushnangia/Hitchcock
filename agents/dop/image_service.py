@@ -1,6 +1,6 @@
 import asyncio
 import fal_client
-from models.scene import CharacterDescription
+from agents.dop.models.scene import CharacterDescription, ScenePanel
 import aiohttp
 import re
 import os
@@ -93,22 +93,46 @@ def extract_attribute(text: str, pattern: str) -> str:
     match = re.search(pattern, text, re.IGNORECASE)
     return match.group(0).strip() if match else ""
 
-async def generate_character_image(character: CharacterDescription, index: int, session_id: str) -> None:
+async def generate_character_image(characters: list[CharacterDescription], index: int, session_id: str, scene_prompt: str = None) -> None:
     try:
-        # Create individual character prompt
-        prompt = (
-            f"Full body portrait of {character.name} in a steampunk setting. "
-            f"Physical features: {character.physical_appearance['build']}, {character.physical_appearance['height']}, "
-            f"{character.physical_appearance['hair']}, {character.physical_appearance['eyes']}, "
-            f"{character.physical_appearance['skin']}. "
-            f"Wearing {character.clothing['outfit']}, {character.clothing['accessories']}, {character.clothing['details']}. "
-            f"Their demeanor shows {character.demeanor['posture']}, with {character.demeanor['movement']} movements "
-            f"and {character.demeanor['expression']}. "
-            "Detailed steampunk environment with brass and copper machinery in background. "
-            "Professional studio lighting with atmospheric steam effects."
-        )
+        # Create a merged prompt that includes both scene and character details
+        if scene_prompt:
+            # Get all character names for the scene
+            character_names = [char.name for char in characters]
+            if len(character_names) > 1:
+                prompt = (
+                    f"A detailed scene showing {scene_prompt}. "
+                    f"The scene includes {', '.join(character_names[:-1])} and {character_names[-1]} interacting naturally. "
+                    "The image should be photorealistic, with professional studio lighting, "
+                    "high detail, and cinematic composition. "
+                    "All characters should be clearly visible and well-integrated into the scene, "
+                    "with their positions and interactions matching their described demeanors."
+                )
+            else:
+                prompt = (
+                    f"A detailed scene showing {scene_prompt}. "
+                    "The image should be photorealistic, with professional studio lighting, "
+                    "high detail, and cinematic composition. "
+                    "The character should be clearly visible and well-integrated into the scene, "
+                    "with their positions and interactions matching their described demeanors."
+                )
+        else:
+            # For single character portraits, use the first character
+            if len(characters) >= 1:
+                character = characters[0]
+                prompt = (
+                    f"Full body portrait of {character.name} in a steampunk setting. "
+                    f"Physical features: {character.physical_appearance['build']}, {character.physical_appearance['height']}, "
+                    f"{character.physical_appearance['hair']}, {character.physical_appearance['eyes']}, "
+                    f"{character.physical_appearance['skin']}. "
+                    f"Wearing {character.clothing['outfit']}, {character.clothing['accessories']}, {character.clothing['details']}. "
+                    f"Their demeanor shows {character.demeanor['posture']}, with {character.demeanor['movement']} movements "
+                    f"and {character.demeanor['expression']}. "
+                    "Detailed steampunk environment with brass and copper machinery in background. "
+                    "Professional studio lighting with atmospheric steam effects."
+                )
 
-        print(f"\n🎭 Generating image for Character {index}: {character.name}")
+        print(f"\n🎭 Generating {'scene' if scene_prompt else 'image for Character'} {index}")
         print("\n📝 Generated Prompt:")
         print(prompt)
         
@@ -118,7 +142,7 @@ async def generate_character_image(character: CharacterDescription, index: int, 
             arguments={
                 "prompt": prompt,
                 "num_images": 1,
-                "aspect_ratio": "4:5",  # Portrait aspect ratio for character shots
+                "aspect_ratio": "4:5",  # Keep original aspect ratio
                 "enable_safety_checker": True,
                 "safety_tolerance": "2",
                 "output_format": "jpeg",
@@ -133,7 +157,7 @@ async def generate_character_image(character: CharacterDescription, index: int, 
             if isinstance(event, dict) and event.get("status") == "error":
                 raise Exception(event.get("message", "Unknown error during generation"))
             elif isinstance(event, dict) and event.get("status") == "completed":
-                print(f"\n✅ Generation completed for {character.name}!")
+                print(f"\n✅ Generation completed!")
 
         # Get the final result
         result = await handler.get()
@@ -141,14 +165,21 @@ async def generate_character_image(character: CharacterDescription, index: int, 
         if result and result.get("images"):
             # Save the generated image
             image_url = result["images"][0]["url"]
-            print(f"\n🖼️ Image URL for {character.name}: {image_url}")
+            print(f"\n🖼️ Image URL generated")
             
             # Download the image
             async with aiohttp.ClientSession() as session:
                 async with session.get(image_url) as resp:
                     if resp.status == 200:
                         # Create filename with session ID
-                        filename = f"character_{index}_{character.name.lower()}_{session_id}.jpg"
+                        if scene_prompt:
+                            # For scenes, include all character names in filename
+                            char_names = "_".join(char.name.lower() for char in characters)
+                            filename = f"scene_{char_names}_{session_id}.jpg"
+                        else:
+                            # For individual portraits
+                            filename = f"character_{index}_{characters[0].name.lower()}_{session_id}.jpg"
+                        
                         image_path = os.path.join(IMAGE_DIR, filename)
                         
                         # Save image
@@ -156,50 +187,115 @@ async def generate_character_image(character: CharacterDescription, index: int, 
                             f.write(await resp.read())
                         print(f"\n💾 Image saved as: {image_path}")
                         
-                        # Save metadata
-                        metadata_path = save_metadata(character, image_path, session_id, index)
-                        print(f"📄 Metadata saved as: {metadata_path}")
+                        # Save metadata for all characters in the scene
+                        metadata_paths = []
+                        for i, char in enumerate(characters):
+                            metadata_path = save_metadata(char, image_path, session_id, i + 1)
+                            metadata_paths.append(metadata_path)
+                        print(f"📄 Metadata saved for all characters: {', '.join(metadata_paths)}")
         else:
-            print(f"\n❌ No images generated for {character.name}")
+            print(f"\n❌ No images generated")
 
     except Exception as e:
-        print(f"\n❌ An error occurred while generating {character.name}: {str(e)}")
+        print(f"\n❌ An error occurred while generating image: {str(e)}")
 
-async def generate_test_image():
+async def generate_test_image(scene_panel: ScenePanel = None):
     # Setup output directories and get session ID
     session_id = setup_output_directories()
     print(f"🆔 Session ID: {session_id}")
     print(f"📁 Output directories created at {OUTPUT_DIR}")
 
-    # Rich character descriptions prompt
-    test_prompt = """
-    1) Isabella is a tall and graceful woman with olive skin and striking features. Her long raven hair is intricately braided with copper wires and brass gears, eyes are deep amber with mechanical iris implants. She wears a high-necked crimson leather coat with brass buttons and steam vents, accessorized with a brass monocle that displays holographic data and fingerless gloves with exposed mechanical joints. Her posture is elegant yet ready for action, movements are precise and calculated, with an expression of intense curiosity and determination.
-
-    2) Magnus is a broad-shouldered, muscular man with weathered skin and burn scars. His silver-streaked dark hair is pulled back, revealing a brass plate at his temple, eyes are mechanical constructs glowing electric blue. He wears a heavy leather apron covered in tool pouches over a brass-plated vest, accessories include protective goggles with multiple lenses and a mechanical arm with built-in tools. His posture is powerful and grounded, movements are deliberate and strong, expression shows focused concentration with a hint of pride.
-
-    3) Mei is a petite but athletic woman with porcelain skin marked with delicate gear tattoos. Her jet-black hair is styled in an elaborate updo held with jade and brass hairpins that double as lock picks, eyes are emerald green with golden flecks. She wears a modified qipao in midnight blue silk with brass armor panels, accessorized with a mechanical fan that conceals various tools and a belt of small potion vials. Her posture is fluid and balanced, movements are swift and graceful, expression is mysterious with a knowing smile.
-
-    4) Thaddeus is a tall, lean man with dark umber skin that gleams with metallic undertones. His closely-cropped hair has patterns shaved into it revealing copper neural implants, eyes are gold with telescopic modifications. He wears an elaborate bronze-colored coat with multiple moving parts and gauges, accessories include a hovering mechanical familiar and chronometer rings on each finger. His posture is scholarly yet alert, movements are smooth and purposeful, expression shows analytical interest and gentle wisdom.
-
-    5) Aurora is a muscular, athletic woman with frost-pale skin that seems to shimmer. Her white-blonde hair flows with static electricity and contains floating metallic ornaments, eyes are silver with clockwork patterns. She wears a form-fitting suit of articulated brass plates over a tesla-coil powered bodysuit, accessories include energy-conducting gauntlets and boots with magnetic soles. Her posture is dynamic and energetic, movements are bold and powerful, expression radiates confidence and excitement.
-    """
-
-    # Parse characters from the prompt
-    characters = parse_characters_from_prompt(test_prompt)
+    # Get characters from the storyboard database
+    from agents.story_boarder.storage import StoryboardStorage
+    storage = StoryboardStorage()
+    db_characters = storage.db.load_script_characters()
     
-    print(f"\n🎭 Found {len(characters)} characters in the prompt")
-    
-    # Generate images for each parsed character
-    for i, character in enumerate(characters, 1):
-        print(f"\n📝 Character {i} Details:")
-        print(f"Name: {character.name}")
-        print(f"Physical Appearance: {character.physical_appearance}")
-        print(f"Clothing: {character.clothing}")
-        print(f"Demeanor: {character.demeanor}")
-        print("\n-----------------------------------")
+    # Convert database characters to CharacterDescription objects
+    characters = []
+    for char in db_characters:
+        # Initialize empty dictionaries for required attributes
+        physical = {"build": "", "height": "", "hair": "", "eyes": "", "skin": ""}
+        clothing = {"outfit": "", "accessories": "", "details": ""}
+        demeanor = {"posture": "", "movement": "", "expression": ""}
         
-        await generate_character_image(character, i, session_id)
-        print("\n===================================\n")
+        # Extract physical attributes if they exist in traits or description
+        for attr in ['build', 'height', 'hair', 'eyes', 'skin']:
+            value = extract_attribute(char['traits'], f"{attr}[^,\.]+") or extract_attribute(char['description'], f"{attr}[^,\.]+")
+            if value:
+                physical[attr] = value
+                
+        # Extract clothing details if they exist
+        for attr in ['outfit', 'accessories', 'details']:
+            value = extract_attribute(char['description'], f"{attr}[^,\.]+")
+            if value:
+                clothing[attr] = value
+                
+        # Extract demeanor if it exists
+        for attr in ['posture', 'movement', 'expression']:
+            value = extract_attribute(char['traits'], f"{attr}[^,\.]+") or extract_attribute(char['description'], f"{attr}[^,\.]+")
+            if value:
+                demeanor[attr] = value
+        
+        # Create character with required fields
+        character = CharacterDescription(
+            name=char['name'],
+            age="adult",  # Required field
+            gender="unspecified",  # Required field
+            physical_appearance=physical,  # Required field
+            clothing=clothing,  # Required field
+            demeanor=demeanor  # Required field
+        )
+        characters.append(character)
+    
+    print(f"\n🎭 Found {len(characters)} characters in the database")
+    
+    # make scene panel character focus objects lower case and also remove quotes
+    character_focus = [char.lower().replace('"', '').replace("“", "").replace("”", "") for char in scene_panel.character_focus]
+
+    # Filter characters to only those in the scene
+    scene_characters = [char for char in characters if char.name.lower().replace('"', '').replace("“", "").replace("”", "") in character_focus]
+    # Create a detailed scene description with characters
+    scene_description = f"{scene_panel.description} "
+    
+    # Add visual style details
+    scene_description += f"The scene has {', '.join(f'{k}: {v}' for k, v in scene_panel.visuals.items())}. "
+    
+    # Add camera angle
+    scene_description += f"Shot from a {scene_panel.camera_angle.value} angle. "
+    
+    # Add character descriptions
+    for char in scene_characters:
+        scene_description += (
+            f"{char.name} is present in the scene, "
+            f"a {char.physical_appearance['build'] or 'person'} with "
+            f"{char.physical_appearance['hair'] or 'natural hair'}, "
+            f"{char.physical_appearance['eyes'] or 'eyes'}, and "
+            f"{char.physical_appearance['skin'] or 'skin'}. "
+            f"They are wearing {char.clothing['outfit'] or 'appropriate attire'}"
+        )
+        if char.clothing['accessories']:
+            scene_description += f" with {char.clothing['accessories']}"
+        if char.clothing['details']:
+            scene_description += f", {char.clothing['details']}"
+        scene_description += ". "
+        
+        scene_description += (
+            f"Their demeanor shows {char.demeanor['posture'] or 'natural posture'}, "
+            f"with {char.demeanor['movement'] or 'natural'} movements and "
+            f"{char.demeanor['expression'] or 'neutral'} expression. "
+        )
+        breakpoint()
+    
+    print(f"\n📝 Generated Scene Description:")
+    print(scene_description)
+    
+    # Generate the scene image with all characters
+    await generate_character_image(
+        characters=scene_characters,
+        index=1,
+        session_id=session_id,
+        scene_prompt=scene_description
+    )
 
     print(f"\n✨ Generation session completed!")
     print(f"📁 Images saved in: {IMAGE_DIR}")
