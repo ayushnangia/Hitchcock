@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List, Optional
+from typing import List, Optional, Dict
 from contextlib import contextmanager
 import os
 from .tools import ScriptScene, SceneAnalysis, VisualPlan, ShotImageSpec, Shot
@@ -474,3 +474,207 @@ class StoryboardDBClient:
                 specs.append(spec)
             
             return specs 
+
+    def get_all_scene_ids(self) -> List[str]:
+        """Get a list of all scene IDs in the database"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT scene_id FROM scenes ORDER BY scene_id")
+            return [row['scene_id'] for row in cursor.fetchall()]
+
+    def get_scene_by_id(self, scene_id: str) -> Optional[ScriptScene]:
+        """Get a specific scene by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get scene data
+            cursor.execute("SELECT * FROM scenes WHERE scene_id = ?", (scene_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+                
+            # Get characters for this scene
+            cursor.execute("""
+                SELECT character_name FROM scene_characters 
+                WHERE scene_id = ?
+            """, (scene_id,))
+            characters = [r['character_name'] for r in cursor.fetchall()]
+            
+            return ScriptScene(
+                scene_id=row['scene_id'],
+                title=row['title'],
+                script_text=row['script_text'],
+                importance=row['importance'],
+                characters=characters,
+                description=row['description']
+            )
+
+    def get_script_text_by_scene_id(self, scene_id: str) -> Optional[str]:
+        """Get just the script text for a specific scene"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT script_text FROM scenes WHERE scene_id = ?", (scene_id,))
+            row = cursor.fetchone()
+            return row['script_text'] if row else None
+
+    def get_scene_analysis_by_id(self, scene_id: str) -> Optional[SceneAnalysis]:
+        """Get the analysis for a specific scene"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get analysis data
+            cursor.execute("SELECT * FROM scene_analyses WHERE scene_id = ?", (scene_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+                
+            # Get key moments
+            cursor.execute("""
+                SELECT moment FROM key_moments 
+                WHERE scene_id = ?
+            """, (scene_id,))
+            key_moments = [r['moment'] for r in cursor.fetchall()]
+            
+            # Get shots
+            cursor.execute("""
+                SELECT * FROM shots 
+                WHERE scene_id = ?
+            """, (scene_id,))
+            shots = []
+            for shot_row in cursor.fetchall():
+                shot = Shot(
+                    type=shot_row['type'],
+                    camera=shot_row['camera'],
+                    description=shot_row['description'],
+                    duration=shot_row['duration'],
+                    camera_movement=shot_row['camera_movement'],
+                    focus=shot_row['focus']
+                )
+                shots.append(shot)
+            
+            return SceneAnalysis(
+                scene_id=scene_id,
+                key_moments=key_moments,
+                shots=shots,
+                setting=row['setting'],
+                mood=row['mood'],
+                pacing=row['pacing'],
+                time_of_day=row['time_of_day']
+            )
+
+    def get_visual_plan_by_id(self, scene_id: str) -> Optional[VisualPlan]:
+        """Get the visual plan for a specific scene"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get plan data
+            cursor.execute("SELECT * FROM visual_plans WHERE scene_id = ?", (scene_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+            
+            # Get props
+            cursor.execute("""
+                SELECT prop FROM visual_plan_props 
+                WHERE scene_id = ?
+            """, (scene_id,))
+            props = [r['prop'] for r in cursor.fetchall()]
+            
+            # Get effects
+            cursor.execute("""
+                SELECT effect FROM visual_plan_effects 
+                WHERE scene_id = ?
+            """, (scene_id,))
+            effects = [r['effect'] for r in cursor.fetchall()]
+            
+            return VisualPlan(
+                scene_id=scene_id,
+                lighting=row['lighting'],
+                props=props,
+                atmosphere=row['atmosphere'],
+                special_effects=effects
+            )
+
+    def get_shot_specs_by_scene_id(self, scene_id: str) -> List[ShotImageSpec]:
+        """Get all shot specifications for a specific scene"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM shot_image_specs WHERE scene_id = ?", (scene_id,))
+            specs = []
+            
+            for row in cursor.fetchall():
+                shot_id = row['shot_id']
+                
+                # Get props
+                cursor.execute("""
+                    SELECT prop FROM shot_spec_props 
+                    WHERE shot_id = ?
+                """, (shot_id,))
+                props = [r['prop'] for r in cursor.fetchall()]
+                
+                # Get effects
+                cursor.execute("""
+                    SELECT effect FROM shot_spec_effects 
+                    WHERE shot_id = ?
+                """, (shot_id,))
+                effects = [r['effect'] for r in cursor.fetchall()]
+                
+                # Get characters
+                cursor.execute("""
+                    SELECT character_name FROM shot_spec_characters 
+                    WHERE shot_id = ?
+                """, (shot_id,))
+                characters = [r['character_name'] for r in cursor.fetchall()]
+                
+                spec = ShotImageSpec(
+                    scene_id=row['scene_id'],
+                    shot_id=shot_id,
+                    description=row['description'],
+                    camera_specs={
+                        'type': row['camera_type'],
+                        'movement': row['camera_movement'],
+                        'focus': row['camera_focus']
+                    },
+                    visual_elements={
+                        'lighting': row['lighting'],
+                        'atmosphere': row['atmosphere'],
+                        'time_of_day': row['time_of_day']
+                    },
+                    props=props,
+                    special_effects=effects,
+                    characters=characters
+                )
+                specs.append(spec)
+            
+            return specs
+
+    def get_scene_metadata(self, scene_id: str) -> Optional[Dict]:
+        """Get a summary of metadata for a scene including title, importance, and character count"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get basic scene data
+            cursor.execute("""
+                SELECT title, importance, description,
+                       (SELECT COUNT(*) FROM scene_characters WHERE scene_id = scenes.scene_id) as character_count
+                FROM scenes 
+                WHERE scene_id = ?
+            """, (scene_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+                
+            return {
+                'scene_id': scene_id,
+                'title': row['title'],
+                'importance': row['importance'],
+                'description': row['description'],
+                'character_count': row['character_count'],
+                'has_analysis': self.get_scene_analysis_by_id(scene_id) is not None,
+                'has_visual_plan': self.get_visual_plan_by_id(scene_id) is not None,
+                'shot_spec_count': len(self.get_shot_specs_by_scene_id(scene_id))
+            } 
