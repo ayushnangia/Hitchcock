@@ -54,3 +54,4 @@ xlrd
 SpeechRecognition
 moviepy==1.0.3
 mahilo
+mutagen
