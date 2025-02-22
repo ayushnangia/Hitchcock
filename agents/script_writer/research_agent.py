@@ -5,7 +5,7 @@ from huggingface_hub import login
 from smolagents import CodeAgent, LiteLLMModel, ToolCallingAgent
 import litellm
 
-from .tools import ScriptResearchTools
+from .research_agent_tools import ScriptResearchTools
 from .prompt import story_writer_prompt
 
 # Load environment variables and login to Hugging Face

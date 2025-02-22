@@ -1,5 +1,5 @@
 # import agents
-from agents.script_writer.tools import tools as story_tools
+from agents.script_writer.research_agent_tools import tools as story_tools
 from agents.script_writer.prompt import story_writer_prompt, short_description
 from agents.story_boarder.tools import tools as boarder_tools
 from agents.story_boarder.prompt import story_boarder_prompt, short_description as boarder_description
@@ -9,7 +9,6 @@ from agents.dop.prompt import dop_prompt, short_description as dop_description
 # import mahilo
 from mahilo import BaseAgent, AgentManager, ServerManager
 
-    
 def main():
     story_writer = BaseAgent(
         name="StoryWriterAgent",
