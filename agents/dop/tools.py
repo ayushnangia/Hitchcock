@@ -57,7 +57,7 @@ async def generate_shot_images(
             character_focus=character_focus or shot_spec.characters
         )
 
-        await generate_test_image()
+        await generate_test_image(scene_panel)
         # await generate_story_video_for_image(scene_panel)
     
     return f"I have created {len(shot_specs)} images and story videos in this directory: output/videos directory"
