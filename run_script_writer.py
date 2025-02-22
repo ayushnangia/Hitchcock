@@ -3,7 +3,7 @@ import os
 import threading
 from dotenv import load_dotenv
 from huggingface_hub import login
-from agents.script_writer import ScriptWriterAgent
+from agents.script_writer import ScriptWriterResearchAgent
 
 # Load environment variables and login to Hugging Face
 load_dotenv(override=True)
@@ -43,7 +43,7 @@ def main():
     args = parse_args()
     
     # Initialize the agent
-    agent = ScriptWriterAgent(
+    agent = ScriptWriterResearchAgent(
         model_id=args.model_id,
         max_steps=args.max_steps,
         verbosity_level=args.verbosity
