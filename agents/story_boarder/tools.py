@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 import instructor
 from openai import OpenAI
+from .storage import StoryboardStorage
 
 class ScriptScene(BaseModel):
     """Basic scene information"""
@@ -41,10 +42,13 @@ class SceneAnalysis(BaseModel):
     pacing: str  # slow, medium, fast
     time_of_day: str
 
-def plan_storyboard_scenes(script_text: str) -> List[ScriptScene]:
+# Initialize storage
+storage = StoryboardStorage()
+
+def plan_storyboard_scenes(script_text: str) -> None:
     """
     Break down script into scenes and identify important ones to storyboard.
-    Returns list of scenes with their basic info.
+    Saves scenes to storage instead of returning them.
     """
     # Initialize OpenAI client with instructor
     client = instructor.patch(OpenAI())
@@ -73,12 +77,13 @@ def plan_storyboard_scenes(script_text: str) -> List[ScriptScene]:
                 {"role": "user", "content": prompt}
             ]
         )
-        return response
+        # Save scenes to storage
+        storage.save_scenes(response)
         
     except Exception as e:
         print(f"Error analyzing script: {e}")
-        # Return a minimal scene list as fallback
-        return [
+        # Save minimal scene list as fallback
+        fallback_scenes = [
             ScriptScene(
                 scene_id="error_001",
                 title="Error Processing Scene",
@@ -88,14 +93,18 @@ def plan_storyboard_scenes(script_text: str) -> List[ScriptScene]:
                 description="Error occurred during scene analysis"
             )
         ]
+        storage.save_scenes(fallback_scenes)
 
-def analyze_script_scenes(scenes: List[ScriptScene]) -> List[SceneAnalysis]:
+def analyze_script_scenes() -> None:
     """
     Analyze scenes to identify key moments and plan shots.
-    Takes list of scenes, returns analysis with shot sequences.
+    Loads scenes from storage and saves analyses back to storage.
     """
     client = instructor.patch(OpenAI())
     analyses = []
+    
+    # Load scenes from storage
+    scenes = storage.load_scenes()
 
     for scene in scenes:
         if scene.importance in ["critical", "high"]:  # Only analyze important scenes
@@ -164,24 +173,57 @@ def analyze_script_scenes(scenes: List[ScriptScene]) -> List[SceneAnalysis]:
                 )
                 analyses.append(fallback)
 
-    return analyses
+    # Save analyses to storage
+    storage.save_scene_analyses(analyses)
 
-def plan_visual_elements(scene_analyses: List[SceneAnalysis]) -> List[VisualPlan]:
+def plan_visual_elements() -> None:
     """
     Plan visual elements for each scene based on their analysis.
-    Takes scene analyses, returns visual plans.
+    Loads scene analyses from storage and saves visual plans back to storage.
     """
+    client = instructor.patch(OpenAI())
     visual_plans = []
+    
+    # Load scene analyses from storage
+    scene_analyses = storage.load_scene_analyses()
+
     for analysis in scene_analyses:
-        plan = VisualPlan(
-            scene_id=analysis.scene_id,
-            lighting="Natural morning light with fog",
-            props=["Fallen trees", "Moss-covered rocks"],
-            atmosphere="Mysterious and tense",
-            special_effects=["Morning mist", "Dappled sunlight"]
-        )
-        visual_plans.append(plan)
-    return visual_plans
+        prompt = f"""
+        Plan the visual elements for this scene:
+        Setting: {analysis.setting}
+        Mood: {analysis.mood}
+        Time of Day: {analysis.time_of_day}
+        
+        Create a visual plan with:
+        1. Lighting setup appropriate for the setting and mood
+        2. Key props needed for the scene
+        3. Overall atmosphere description
+        4. Any special effects needed
+        """
+
+        try:
+            plan = client.chat.completions.create(
+                model="gpt-4o",
+                response_model=VisualPlan,
+                messages=[
+                    {"role": "system", "content": "You are a cinematographer planning visual elements for film scenes."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            visual_plans.append(plan)
+        except Exception as e:
+            print(f"Error planning visuals for scene {analysis.scene_id}: {e}")
+            fallback = VisualPlan(
+                scene_id=analysis.scene_id,
+                lighting=f"Standard {analysis.time_of_day} lighting",
+                props=["Basic set dressing"],
+                atmosphere=analysis.mood,
+                special_effects=[]
+            )
+            visual_plans.append(fallback)
+
+    # Save visual plans to storage
+    storage.save_visual_plans(visual_plans)
 
 tools = [
     {
@@ -209,13 +251,8 @@ tools = [
                 "description": "Analyze scenes and plan shot sequences",
                 "parameters": {
                     "type": "object",
-                    "properties": {
-                        "scenes": {
-                            "type": "array",
-                            "description": "List of scenes to analyze"
-                        }
-                    },
-                    "required": ["scenes"]
+                    "properties": {},
+                    "required": []
                 }
             }
         },
@@ -229,13 +266,8 @@ tools = [
                 "description": "Plan visual elements for scenes",
                 "parameters": {
                     "type": "object",
-                    "properties": {
-                        "scene_analyses": {
-                            "type": "array",
-                            "description": "List of scene analyses"
-                        }
-                    },
-                    "required": ["scene_analyses"]
+                    "properties": {},
+                    "required": []
                 }
             }
         },
