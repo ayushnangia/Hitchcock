@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List, Optional, Dict, TYPE_CHECKING
+from typing import Any, List, Optional, Dict, TYPE_CHECKING
 from contextlib import contextmanager
 import os
 from .models import ScriptScene, Shot, SceneAnalysis, VisualPlan, ShotImageSpec
@@ -718,3 +718,46 @@ class StoryboardDBClient:
                     'traits': row['traits']
                 })
             return characters 
+
+    def get_script_by_id(self, scene_id: str) -> Optional[Dict[str, Any]]:
+        """Get the complete script information for a specific scene ID.
+        
+        Args:
+            scene_id: The ID of the scene to retrieve script information for.
+            
+        Returns:
+            A dictionary containing script information including:
+            - script_text: The actual script content
+            - title: The scene title
+            - characters: List of characters in the scene
+            - description: Scene description
+            Or None if the scene ID is not found.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get scene data including script text
+            cursor.execute("""
+                SELECT script_text, title, description 
+                FROM scenes 
+                WHERE scene_id = ?
+            """, (scene_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+                
+            # Get characters for this scene
+            cursor.execute("""
+                SELECT character_name 
+                FROM scene_characters 
+                WHERE scene_id = ?
+            """, (scene_id,))
+            characters = [r['character_name'] for r in cursor.fetchall()]
+            
+            return {
+                'script_text': row['script_text'],
+                'title': row['title'],
+                'characters': characters,
+                'description': row['description']
+            } 
