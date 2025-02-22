@@ -101,7 +101,7 @@ def create_moderated_prompt(prompt: str) -> str:
     result = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a helpful assistant that moderates prompts for NSFW content."},
+            {"role": "system", "content": "You are a helpful assistant that moderates prompts for NSFW content. Also summarize the prompt if its too long."},
             {"role": "user", "content": prompt}
         ]
     )
@@ -177,7 +177,7 @@ async def generate_character_image(characters: list[CharacterDescription], index
         # Get the final result
         result = await handler.get()
 
-        if result and result.get("has_nsfw_concepts"):
+        if result and result.get("has_nsfw_concepts")[0] == "true":
             # rerun the generation with a moderated prompt
             # create the moderated prompt through an LLM call
             moderated_prompt = create_moderated_prompt(prompt)
