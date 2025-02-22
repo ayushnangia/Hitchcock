@@ -3,7 +3,7 @@ from pathlib import Path
 from models.scene import ScenePanel, CameraAngle
 from agents.story_boarder.storage import StoryboardStorage
 from agents.story_boarder.tools import ShotImageSpec
-from .client import generate_image
+from agents.dop.image_service import generate_test_image
 
 def generate_shot_images(
     lighting: str = None,
@@ -58,14 +58,7 @@ def generate_shot_images(
             character_focus=character_focus or shot_spec.characters
         )
         
-        # Generate the image
-        generate_image(
-            description=scene_panel.description,
-            output_dir=str(output_dir),
-            size=size,
-            camera_angle=camera_angle_enum.value,
-            lighting=lighting or shot_spec.visual_elements.get("lighting", "natural daylight")
-        )
+        generate_test_image(scene_panel)
     
     return f"I have created {len(shot_specs)} images in this directory: {output_dir}"
 
