@@ -1,8 +1,9 @@
 import sqlite3
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, TYPE_CHECKING
 from contextlib import contextmanager
 import os
-from .tools import ScriptScene, SceneAnalysis, VisualPlan, ShotImageSpec, Shot
+if TYPE_CHECKING:
+    from .tools import ScriptScene, SceneAnalysis, VisualPlan, ShotImageSpec, Shot
 
 class StoryboardDBClient:
     """SQLite database client for storyboard pipeline data"""
@@ -158,7 +159,7 @@ class StoryboardDBClient:
             
             conn.commit()
 
-    def save_scenes(self, scenes: List[ScriptScene]) -> None:
+    def save_scenes(self, scenes: List["ScriptScene"]) -> None:
         """Save scene data to database"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -181,7 +182,7 @@ class StoryboardDBClient:
             
             conn.commit()
 
-    def load_scenes(self) -> List[ScriptScene]:
+    def load_scenes(self) -> List["ScriptScene"]:
         """Load scene data from database"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -208,7 +209,7 @@ class StoryboardDBClient:
             
             return scenes
 
-    def save_scene_analyses(self, analyses: List[SceneAnalysis]) -> None:
+    def save_scene_analyses(self, analyses: List["SceneAnalysis"]) -> None:
         """Save scene analyses to database"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -249,7 +250,7 @@ class StoryboardDBClient:
             
             conn.commit()
 
-    def load_scene_analyses(self) -> List[SceneAnalysis]:
+    def load_scene_analyses(self) -> List["SceneAnalysis"]:
         """Load scene analyses from database"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -296,7 +297,7 @@ class StoryboardDBClient:
             
             return analyses
 
-    def save_visual_plans(self, plans: List[VisualPlan]) -> None:
+    def save_visual_plans(self, plans: List["VisualPlan"]) -> None:
         """Save visual plans to database"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -336,7 +337,7 @@ class StoryboardDBClient:
             
             conn.commit()
 
-    def load_visual_plans(self) -> List[VisualPlan]:
+    def load_visual_plans(self) -> List["VisualPlan"]:
         """Load visual plans from database"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -371,7 +372,7 @@ class StoryboardDBClient:
             
             return plans
 
-    def save_shot_image_specs(self, specs: List[ShotImageSpec]) -> None:
+    def save_shot_image_specs(self, specs: List["ShotImageSpec"]) -> None:
         """Save shot image specifications to database"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -422,7 +423,7 @@ class StoryboardDBClient:
             
             conn.commit()
 
-    def load_shot_image_specs(self) -> List[ShotImageSpec]:
+    def load_shot_image_specs(self) -> List["ShotImageSpec"]:
         """Load shot image specifications from database"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -482,7 +483,7 @@ class StoryboardDBClient:
             cursor.execute("SELECT scene_id FROM scenes ORDER BY scene_id")
             return [row['scene_id'] for row in cursor.fetchall()]
 
-    def get_scene_by_id(self, scene_id: str) -> Optional[ScriptScene]:
+    def get_scene_by_id(self, scene_id: str) -> Optional["ScriptScene"]:
         """Get a specific scene by ID"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -518,7 +519,7 @@ class StoryboardDBClient:
             row = cursor.fetchone()
             return row['script_text'] if row else None
 
-    def get_scene_analysis_by_id(self, scene_id: str) -> Optional[SceneAnalysis]:
+    def get_scene_analysis_by_id(self, scene_id: str) -> Optional["SceneAnalysis"]:
         """Get the analysis for a specific scene"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -564,7 +565,7 @@ class StoryboardDBClient:
                 time_of_day=row['time_of_day']
             )
 
-    def get_visual_plan_by_id(self, scene_id: str) -> Optional[VisualPlan]:
+    def get_visual_plan_by_id(self, scene_id: str) -> Optional["VisualPlan"]:
         """Get the visual plan for a specific scene"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -598,7 +599,7 @@ class StoryboardDBClient:
                 special_effects=effects
             )
 
-    def get_shot_specs_by_scene_id(self, scene_id: str) -> List[ShotImageSpec]:
+    def get_shot_specs_by_scene_id(self, scene_id: str) -> List["ShotImageSpec"]:
         """Get all shot specifications for a specific scene"""
         with self._get_connection() as conn:
             cursor = conn.cursor()

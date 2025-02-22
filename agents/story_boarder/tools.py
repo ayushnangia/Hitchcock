@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 import instructor
 from openai import OpenAI
-from .storage import StoryboardStorage
+from agents.story_boarder.storage import StoryboardStorage
 from pathlib import Path
 
 class ScriptScene(BaseModel):
