@@ -1,6 +1,8 @@
 # import agents
 from agents.script_writer.tools import tools as story_tools
 from agents.script_writer.prompt import story_writer_prompt, short_description
+from agents.story_boarder.tools import tools as boarder_tools
+from agents.story_boarder.prompt import story_boarder_prompt, short_description as boarder_description
 
 # import mahilo
 from mahilo import BaseAgent, AgentManager, ServerManager
@@ -15,11 +17,21 @@ def main():
         tools=story_tools,
     )
 
+    story_boarder = BaseAgent(
+        name="StoryBoarderAgent",
+        type="story_boarder",
+        description=story_boarder_prompt,
+        short_description=boarder_description,
+        tools=boarder_tools,
+    )
+
     team = AgentManager()
     team.register_agent(story_writer)
+    team.register_agent(story_boarder)
 
-    # activate the base agent with no dependencies
+    # activate the agents
     story_writer.activate()
+    story_boarder.activate()
 
     server = ServerManager(team)
     server.run()
