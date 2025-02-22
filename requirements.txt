@@ -53,3 +53,16 @@ python-pptx
 torch
 xlrd
 SpeechRecognition
+pydantic
+modal==0.56.4374
+diffusers
+torch>=2.0.0
+moviepy
+python-dotenv
+fastapi
+uvicorn
+pillow==10.2.0
+transformers
+accelerate
+safetensors
+pydantic-settings
