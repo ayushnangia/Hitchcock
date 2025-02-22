@@ -37,8 +37,8 @@ python_pptx>=1.0.2
 Requests>=2.32.3
 serpapi>=0.1.5
 tqdm>=4.66.4
-torch>=2.2.2
-torchvision>=0.17.2
+# torch>=2.2.2
+# torchvision>=0.17.2
 transformers>=4.46.0
 youtube_transcript_api>=0.6.2
 chess
@@ -50,19 +50,5 @@ scipy
 pydub
 PyPDF2
 python-pptx
-torch
 xlrd
 SpeechRecognition
-pydantic
-modal==0.56.4374
-diffusers
-torch>=2.0.0
-moviepy
-python-dotenv
-fastapi
-uvicorn
-pillow==10.2.0
-transformers
-accelerate
-safetensors
-pydantic-settings
