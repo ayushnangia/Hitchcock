@@ -1,5 +1,6 @@
 import asyncio
 import fal_client
+from litellm import OpenAI
 from agents.dop.models.scene import CharacterDescription, ScenePanel
 import aiohttp
 import re
@@ -93,7 +94,21 @@ def extract_attribute(text: str, pattern: str) -> str:
     match = re.search(pattern, text, re.IGNORECASE)
     return match.group(0).strip() if match else ""
 
-async def generate_character_image(characters: list[CharacterDescription], index: int, session_id: str, scene_prompt: str = None, shot_id: str = None) -> None:
+def create_moderated_prompt(prompt: str) -> str:
+    """Create a moderated prompt through an LLM call."""
+    # create the moderated prompt through an LLM call
+    client = OpenAI()
+    result = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that moderates prompts for NSFW content."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    return result.choices[0].message.content
+
+
+async def generate_character_image(characters: list[CharacterDescription], index: int, session_id: str, scene_prompt: str = None, shot_id: str = None) -> bool:
     try:
         # Create a merged prompt that includes both scene and character details
         if scene_prompt:
@@ -143,8 +158,8 @@ async def generate_character_image(characters: list[CharacterDescription], index
                 "prompt": prompt,
                 "num_images": 1,
                 "aspect_ratio": "4:5",  # Keep original aspect ratio
-                "enable_safety_checker": True,
-                "safety_tolerance": "2",
+                "enable_safety_checker": False,
+                "safety_tolerance": "5",
                 "output_format": "jpeg",
                 "raw": False
             }
@@ -161,6 +176,12 @@ async def generate_character_image(characters: list[CharacterDescription], index
 
         # Get the final result
         result = await handler.get()
+
+        if result and result.get("has_nsfw_concepts"):
+            # rerun the generation with a moderated prompt
+            # create the moderated prompt through an LLM call
+            moderated_prompt = create_moderated_prompt(prompt)
+            return await generate_character_image(characters, index, session_id, moderated_prompt, shot_id)
         
         if result and result.get("images"):
             # Save the generated image
@@ -199,7 +220,14 @@ async def generate_character_image(characters: list[CharacterDescription], index
     except Exception as e:
         print(f"\n❌ An error occurred while generating image: {str(e)}")
 
-async def generate_test_image(scene_panel: ScenePanel = None):
+    # if the result has a has_nsfw_concepts key, and the value is a list with true in it,
+    # return true, else return false
+    if result and result.get("has_nsfw_concepts"):
+        return result.get("has_nsfw_concepts")[0] == "true"
+    else:
+        return False
+
+async def generate_test_image(scene_panel: ScenePanel = None) -> bool:
     # Setup output directories and get session ID
     session_id = setup_output_directories()
     print(f"🆔 Session ID: {session_id}")
@@ -289,13 +317,20 @@ async def generate_test_image(scene_panel: ScenePanel = None):
     print(scene_description)
     
     # Generate the scene image with all characters
-    await generate_character_image(
+    nsfw = await generate_character_image(
         characters=scene_characters,
         index=1,
         session_id=session_id,
         scene_prompt=scene_description,
         shot_id=scene_panel.panel_id
     )
+
+    if nsfw:
+        print(f"\n❌ NSFW content detected")
+        return False
+    else:
+        print(f"\n✅ No NSFW content detected")
+        return True
 
     print(f"\n✨ Generation session completed!")
     print(f"📁 Images saved in: {IMAGE_DIR}")
