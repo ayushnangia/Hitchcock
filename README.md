@@ -4,7 +4,7 @@ Hitchcock is an innovative multi-agent system for automated movie production, le
 
 ## System Architecture
 
-![Hitchcock Architecture](docs/arch_v1.png)
+![Hitchcock Architecture](assets/arch_v1.png)
 
 The architecture diagram above illustrates the complete pipeline flow and agent interactions. The system uses `uv` for fast, reliable dependency management and virtual environment handling.
 
