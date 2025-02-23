@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hitchcock - Media Timeline</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #3b82f6;
+        --primary-dark: #2563eb;
+        --background: #030712;
+        --surface: #111827;
+        --surface-light: #1f2937;
+        --text: #f9fafb;
+        --text-secondary: #9ca3af;
+      }
+
+      body {
+        background-color: var(--background);
+        color: var(--text);
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+
+      .timeline-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: var(--surface-light) var(--surface);
+      }
+
+      .timeline-scroll::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      .timeline-scroll::-webkit-scrollbar-track {
+        background: var(--surface);
+        border-radius: 3px;
+      }
+
+      .timeline-scroll::-webkit-scrollbar-thumb {
+        background-color: var(--surface-light);
+        border-radius: 3px;
+        transition: background-color 0.2s;
+      }
+
+      .timeline-scroll::-webkit-scrollbar-thumb:hover {
+        background-color: var(--primary);
+      }
+
+      .media-card {
+        background-color: var(--surface);
+        border: 1px solid var(--surface-light);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .media-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+        border-color: var(--primary);
+      }
+
+      .media-container {
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .animate-spin {
+        animation: spin 1s linear infinite;
+      }
+
+      .shimmer {
+        background: linear-gradient(
+          90deg,
+          var(--surface) 0%,
+          var(--surface-light) 50%,
+          var(--surface) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+
+      @keyframes shimmer {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <!-- Navigation -->
+    <nav
+      class="bg-surface/95 border-b border-surface-light/20 sticky top-0 z-50 backdrop-blur-lg shadow-lg"
+    >
+      <div class="container mx-auto px-4 py-3">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center space-x-4">
+            <i class="fas fa-film text-primary text-2xl"></i>
+            <h1 class="text-2xl font-bold tracking-tight">Hitchcock</h1>
+          </div>
+          <div class="flex items-center space-x-4">
+            <span id="lastUpdated" class="text-sm text-text-secondary"></span>
+            <button
+              id="refreshButton"
+              class="px-4 py-2 bg-primary hover:bg-primary-dark rounded-lg flex items-center gap-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+            >
+              <i class="fas fa-sync-alt"></i>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-8 flex-1">
+      <!-- Scene Timeline Section -->
+      <section class="mb-12">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-semibold text-text">Scene Timeline</h2>
+          <div class="flex items-center space-x-2 text-text-secondary">
+            <i class="fas fa-clock text-sm"></i>
+            <span class="text-sm">Latest scenes</span>
+          </div>
+        </div>
+        <div class="relative">
+          <div class="overflow-x-auto timeline-scroll">
+            <div id="imageTimeline" class="flex gap-4 pb-4 min-w-full">
+              <!-- Loading placeholders -->
+              <div class="animate-pulse flex gap-4">
+                ${Array(6).fill().map(() => `
+                <div
+                  class="media-card rounded-xl overflow-hidden flex-shrink-0"
+                  style="width: 240px"
+                >
+                  <div class="media-container relative pt-[75%] shimmer"></div>
+                  <div class="p-3">
+                    <div class="h-4 bg-surface-light rounded w-3/4"></div>
+                  </div>
+                </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          <div
+            class="absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-background to-transparent pointer-events-none"
+          ></div>
+          <div
+            class="absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-background to-transparent pointer-events-none"
+          ></div>
+        </div>
+      </section>
+
+      <!-- Videos Section -->
+      <section>
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-semibold text-text">Generated Videos</h2>
+          <div class="flex items-center space-x-2 text-text-secondary">
+            <i class="fas fa-video text-sm"></i>
+            <span id="videoCount" class="text-sm">0 videos</span>
+          </div>
+        </div>
+        <div id="videoGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <!-- Videos will be populated here -->
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-auto py-6 bg-surface">
+      <div class="container mx-auto px-4">
+        <p class="text-center text-text-secondary text-sm">
+          Hitchcock Media Timeline • <span id="currentYear"></span>
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      const refreshButton = document.getElementById('refreshButton');
+      const lastUpdated = document.getElementById('lastUpdated');
+      const videoCount = document.getElementById('videoCount');
+      const currentYear = document.getElementById('currentYear');
+      let isLoading = false;
+
+      // Update current year
+      currentYear.textContent = new Date().getFullYear();
+
+      function formatLastUpdated(date) {
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000);
+
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        return date.toLocaleDateString();
+      }
+
+      async function fetchFiles() {
+        if (isLoading) return;
+
+        try {
+          isLoading = true;
+          refreshButton.innerHTML =
+            '<i class="fas fa-sync-alt animate-spin"></i><span>Loading...</span>';
+          refreshButton.disabled = true;
+          refreshButton.classList.add('opacity-75');
+
+          const response = await fetch('/api/files');
+          const data = await response.json();
+
+          // Update last updated time
+          lastUpdated.textContent = formatLastUpdated(new Date());
+
+          // Update video count
+          videoCount.textContent = `${data.videos.length} video${
+            data.videos.length !== 1 ? 's' : ''
+          }`;
+
+          // Populate images timeline with fade-in animation
+          const imageTimeline = document.getElementById('imageTimeline');
+          imageTimeline.innerHTML = data.images
+            .map(
+              (image, index) => `
+              <div class="media-card rounded-xl overflow-hidden flex-shrink-0 opacity-0"
+                   style="width: 240px; animation: fadeIn 0.3s ease-out ${
+                     index * 0.1
+                   }s forwards;">
+                <div class="media-container relative pt-[75%] group">
+                  <img 
+                    src="/output/images/${image}"
+                    alt="${image}"
+                    class="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'100\\' viewBox=\\'0 0 100 100\\'%3E%3Crect width=\\'100\\' height=\\'100\\' fill=\\'%23333\\'/%3E%3Ctext x=\\'50\\' y=\\'50\\' font-family=\\'Arial\\' font-size=\\'14\\' text-anchor=\\'middle\\' alignment-baseline=\\'middle\\' fill=\\'%23666\\'%3EImage Error%3C/text%3E%3C/svg%3E'"
+                  >
+                </div>
+                <div class="p-3">
+                  <p class="text-sm text-text-secondary truncate">${image}</p>
+                </div>
+              </div>
+            `
+            )
+            .join('');
+
+          // Populate videos with fade-in animation
+          const videoGrid = document.getElementById('videoGrid');
+          videoGrid.innerHTML = data.videos
+            .map(
+              (video, index) => `
+              <div class="media-card rounded-xl overflow-hidden opacity-0"
+                   style="animation: fadeIn 0.3s ease-out ${
+                     index * 0.1
+                   }s forwards;">
+                <div class="media-container relative group h-full">
+                  <video 
+                    controls 
+                    class="w-full h-full transition-transform duration-300 group-hover:scale-105"
+
+                  >
+                    <source src="/output/videos/${video}" type="video/mp4">
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+                <div class="p-4">
+                  <p class="text-sm text-text truncate mb-1">${video}</p>
+                  <p class="text-xs text-text-secondary">MP4 Video</p>
+                </div>
+              </div>
+            `
+            )
+            .join('');
+        } catch (error) {
+          console.error('Error fetching files:', error);
+          // Show error toast or notification here
+        } finally {
+          isLoading = false;
+          refreshButton.innerHTML =
+            '<i class="fas fa-sync-alt"></i><span>Refresh</span>';
+          refreshButton.disabled = false;
+          refreshButton.classList.remove('opacity-75');
+        }
+      }
+
+      // Add click event listener to refresh button
+      refreshButton.addEventListener('click', fetchFiles);
+
+      // Initial fetch
+      fetchFiles();
+
+      // Add keyframe animation for fade-in effect
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    </script>
+  </body>
+</html>
