@@ -30,8 +30,8 @@
 
       /* Dark theme variables */
       :root[data-theme='dark'] {
-        --primary: #3b82f6;
-        --primary-dark: #2563eb;
+        --primary: #747474;
+        --primary-dark: #3f3f3f;
         --background: #030712;
         --surface: #000000;
         --surface-light: #1f2937;
@@ -380,6 +380,25 @@
           <!-- Videos will be populated here -->
         </div>
       </section>
+
+      <section class="mt-12">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-semibold">Generated Audio Files</h2>
+          <div
+            class="flex items-center space-x-2"
+            style="color: var(--text-secondary)"
+          >
+            <!-- <i class="fas fa-music text-sm"></i> -->
+            <span id="audioCount" class="text-sm">0 audio files</span>
+          </div>
+        </div>
+        <div
+          id="audioGrid"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          <!-- Audio files will be populated here -->
+        </div>
+      </section>
     </main>
 
     <footer class="mt-auto py-6" style="background-color: var(--surface)">
@@ -551,6 +570,12 @@
             data.videos.length !== 1 ? 's' : ''
           }`;
 
+          // Update audio count
+          const audioCount = document.getElementById('audioCount');
+          audioCount.textContent = `${data.audio.length} audio file${
+            data.audio.length !== 1 ? 's' : ''
+          }`;
+
           // Populate images timeline
           const imageTimeline = document.getElementById('imageTimeline');
           imageTimeline.innerHTML = data.images
@@ -608,6 +633,32 @@
                 </div>
               </div>
             `
+            )
+            .join('');
+
+          const audioGrid = document.getElementById('audioGrid');
+          audioGrid.innerHTML = data.audio
+            .map(
+              (audio, index) => `
+                <div class="media-card rounded-xl overflow-hidden opacity-0"
+                     style="animation: fadeIn 0.3s ease-out ${
+                       index * 0.1
+                     }s forwards;">
+                  <div class="p-6">
+                    <div class="flex items-center justify-center mb-4">
+                      <i class="fas fa-music text-4xl" style="color: var(--primary)"></i>
+                    </div>
+                    <audio controls class="w-full mb-4">
+                      <source src="/output/audio/${audio}" type="audio/mpeg">
+                      Your browser does not support the audio element.
+                    </audio>
+                    <div>
+                      <p class="text-sm truncate" style="color: var(--text);">${audio}</p>
+                      <p class="text-xs mt-1" style="color: var(--text-secondary);">Audio File</p>
+                    </div>
+                  </div>
+                </div>
+              `
             )
             .join('');
         } catch (error) {
