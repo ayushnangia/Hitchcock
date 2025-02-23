@@ -143,7 +143,6 @@ def analyze_script_scenes() -> str:
                     time_of_day="day"
                 )
                 analyses.append(fallback)
-        break
 
     # Save analyses to storage
     storage.save_scene_analyses(analyses)

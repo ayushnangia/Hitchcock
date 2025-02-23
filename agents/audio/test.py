@@ -1,55 +1,7 @@
-from typing import Dict, List
-from agents.audio.storage import AudioStorage
-from agents.audio.eleven_labs_service import ElevenLabsService
 import os
-from mutagen.mp3 import MP3
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 import glob
+from mutagen.mp3 import MP3
 import subprocess
-
-def process_scripts_for_audio() -> str:
-    """
-    Load all shot images from the database, extract scene IDs,
-    and fetch corresponding script data for audio processing.
-    Uses Eleven Labs to generate audio for each script.
-    
-    Returns:
-        A string message indicating where the audio files were created.
-    """
-    # Initialize storage and audio service clients
-    storage = AudioStorage()
-    audio_service = ElevenLabsService()
-    
-    # Get all shot specs from storage
-    shot_specs = storage.load_shot_image_specs()
-    
-    # Extract unique scene IDs
-    scene_ids = list(set(spec.scene_id for spec in shot_specs))
-    
-    # Track generated audio files
-    generated_files = []
-    
-    # Fetch script data for each scene
-    for scene_id in scene_ids:
-        script_data = storage.get_script_by_id(scene_id)
-        if script_data:
-            print(f"\nProcessing Scene: {script_data['title']}")
-            print(f"Characters: {', '.join(script_data['characters'])}")
-            print(f"Description: {script_data['description']}")
-            
-            # Generate audio for the script text
-            audio_path = audio_service.generate_audio(text=script_data['script_text'], scene_id=scene_id)
-            if audio_path:
-                generated_files.append(audio_path)
-                print(f"Generated audio file: {audio_path}")
-            else:
-                print(f"Failed to generate audio for scene: {script_data['title']}")
-            
-            print("-" * 80)
-
-    create_videos_from_audio_and_images()
-    
-    return f"Generated {len(generated_files)} audio files in the output/audio directory"
 
 def create_videos_from_audio_and_images() -> str:
     """
@@ -178,21 +130,6 @@ def create_videos_from_audio_and_images() -> str:
     
     return f"Created {len(processed_videos)} videos in the output/videos directory and combined them into final.mp4"
 
-# Add the script processing tool to the list of available tools
-tools = [
-    {
-        "tool": {
-            "type": "function",
-            "function": {
-                "name": "process_scripts_for_audio",
-                "description": "Load shot images, extract scene IDs, and generate audio for scripts using Eleven Labs",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            }
-        },
-        "function": process_scripts_for_audio,
-    }
-]
+if __name__ == '__main__':
+    result = create_videos_from_audio_and_images()
+    print(result)
