@@ -1,0 +1,4 @@
+{"content": "Pending messages: StoryBoarderAgent: The storyboard for the short story about pandas in a zoo is ready for audio generation.", "role": "user"}
+{"content": null, "refusal": null, "role": "assistant", "audio": null, "function_call": null, "tool_calls": [{"id": "call_NMW1J86jPFP4wzeOnKHYHPRI", "function": {"arguments": "{}", "name": "process_scripts_for_audio"}, "type": "function"}]}
+{"tool_call_id": "call_NMW1J86jPFP4wzeOnKHYHPRI", "role": "tool", "name": "process_scripts_for_audio", "content": "Generated 1 audio files in the output/audio directory"}
+{"content": "I've processed the scripts for audio generation and generated the audio files. If you need anything else, let me know!", "refusal": null, "role": "assistant", "audio": null, "function_call": null, "tool_calls": null}

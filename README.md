@@ -1,12 +1,13 @@
 # Hitchcock - AI-Powered Movie Production Pipeline
 
-Hitchcock is an innovative multi-agent system that automates the movie production pipeline from script to screen. Built with modern AI technologies, it orchestrates specialized agents to handle different aspects of movie production, from scriptwriting to visual implementation.
+Hitchcock is an innovative multi-agent system that automates the movie production pipeline from script to screen. Built with modern AI technologies, it orchestrates specialized agents to handle different aspects of movie production, from scriptwriting to audio synthesis.
 
 ## 🎯 Key Features
 
 - **Automated Script Generation**: AI-powered script creation with deep research capabilities
 - **Intelligent Story Boarding**: Automated scene breakdown and shot planning
 - **Visual Element Planning**: Comprehensive planning of lighting, props, and atmosphere
+- **Audio Synthesis**: Voice generation and audio management
 - **Multi-Agent Architecture**: Specialized agents working together in a coordinated pipeline
 - **Modern Tech Stack**: Built with Python 3.8+, using cutting-edge AI and media processing libraries
 
@@ -27,6 +28,7 @@ The system consists of the following specialized agents:
   - Web browsing and research tools
   - Text analysis and inspection
   - Scene generation and analysis
+  - Research agent for deep context gathering
 
 ### 2. Story Boarding Agent
 - **Purpose**: Converts scripts into detailed visual plans
@@ -40,15 +42,31 @@ The system consists of the following specialized agents:
   - Shot-by-shot planning
   - Lighting and atmosphere specification
   - Prop and special effect planning
+  - Database integration for state management
 
 ### 3. Director of Photography (DOP) Agent
 - **Purpose**: Handles visual implementation of story boards
-- **Status**: In development
-- **Planned Features**:
+- **Capabilities**:
   - Text-to-image generation
   - Scene composition
   - Visual continuity management
   - Lighting implementation
+- **Features**:
+  - Image generation services
+  - Video sequence creation
+  - Visual style consistency
+  - Configuration management
+
+### 4. Audio Agent
+- **Purpose**: Manages audio synthesis and voice generation
+- **Capabilities**:
+  - Voice synthesis using Eleven Labs
+  - Audio storage and retrieval
+  - Voice consistency management
+- **Features**:
+  - Character voice generation
+  - Audio file management
+  - Integration with video pipeline
 
 ## 🚀 Getting Started
 
@@ -65,7 +83,7 @@ pip install uv
 
 2. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/hitchcock.git
+git clone https://github.com/ayushnangia/Hitchcock
 cd hitchcock
 ```
 
@@ -82,17 +100,45 @@ source .venv/bin/activate  # On Unix
 uv pip sync requirements.txt
 ```
 
-### Running the System
+### Configuration
+0. Fix Mahilo in venv
+add in mahilo/agent.py
+
+in process_queue_message and process_chat_message function add
+```python
+                try:
+                    if function_name == "contact_human":
+                        function_response = await function_to_call(**function_args, websockets=websockets)
+
+                    elif function_name == "generate_shot_images":
+                        function_response = await function_to_call(**function_args)
+```
+
+
 
 1. Configure environment variables:
 ```bash
 cp .env.template .env
 # Edit .env with your API keys and configurations
 ```
+2. Always Remove old db and sessions
+```bash
+sh run_db_dele.sh
+``` 
 
-2. Start the control plane:
+3. Start the control plane:
 ```bash
 python control_plane.py
+```
+
+4. Start the script writer agent:
+```bash
+mahilo mahilo connect --agent-name StoryWriterAgent
+``` 
+
+5. Talk to the agent
+```bash
+mahilo mahilo chat --agent-name [StoryWriterAgent|StoryBoarderAgent|DOPAgent|AudioAgent]
 ```
 
 ## 📁 Project Structure
@@ -104,17 +150,30 @@ hitchcock/
 ├── .env.template        # Environment variable template
 ├── agents/
 │   ├── script_writer/   # Script Writer Agent
-│   │   ├── agent.py     # Agent implementation
-│   │   ├── prompt.py    # Agent prompts
 │   │   ├── tools.py     # Script writing tools
+│   │   ├── prompt.py    # Agent prompts
+│   │   ├── research_agent.py  # Research capabilities
 │   │   └── scripts/     # Additional scripts
 │   ├── story_boarder/   # Story Boarding Agent
+│   │   ├── tools.py     # Story boarding tools
 │   │   ├── prompt.py    # Agent prompts
 │   │   ├── storage.py   # State management
-│   │   └── tools.py     # Story boarding tools
-│   └── dop/            # DOP Agent (in development)
+│   │   ├── models.py    # Data models
+│   │   └── db_client.py # Database operations
+│   ├── dop/            # DOP Agent
+│   │   ├── tools.py     # Visual tools
+│   │   ├── prompt.py    # Agent prompts
+│   │   ├── image_service.py  # Image generation
+│   │   └── generate_story_video.py  # Video creation
+│   └── audio/          # Audio Agent
+│       ├── tools.py     # Audio processing tools
+│       ├── prompt.py    # Agent prompts
+│       ├── models.py    # Audio data models
+│       └── eleven_labs_service.py  # Voice synthesis
 ├── assets/             # Project assets
-└── downloads/          # Downloaded research materials
+├── downloads/          # Downloaded research materials
+├── output/            # Generated content
+└── sessions/          # Session management
 ```
 
 ## 🛠 Development
@@ -139,79 +198,23 @@ uv pip compile --resolution=lowest
 uv pip sync
 ```
 
+### Running Individual Components
+
+Run script writer:
+```bash
+python run_script_writer.py
+```
+
+### Database Management
+
+Manage database:
+```bash
+./run_db_dele.sh
+```
+
+## 📝 License
+
+MIT
 
 ---
 *Note: This is an active development project. Features and capabilities may change as development progresses.*
-# Hitchcock: AI-Driven Video Generation Pipeline
-
-Hitchcock is a sophisticated multi-agent movie maker that transforms storyboard descriptions into cinematic videos using state-of-the-art AI models.
-
-## Architecture
-
-### Core Components
-
-1. **Storyboard Engine**
-   - Processes structured scene descriptions
-   - Manages character continuity and visual themes
-   - Uses Pydantic for robust data validation
-
-2. **Image Generation Service**
-   - Leverages Stable Diffusion XL for high-quality image generation
-   - Maintains visual consistency across frames
-   - Handles character and environment rendering
-
-3. **Video Processing Pipeline**
-   - Converts image sequences to video
-   - Implements cinematic camera movements
-   - Manages temporal consistency
-
-4. **Asset Management**
-   - Stores and retrieves generated assets
-   - Handles metadata and relationships
-   - Integrates with VideoDB for efficient storage
-
-### Tech Stack
-
-- **Framework**: Modal (Serverless deployment)
-- **Image Generation**: HuggingFace Diffusers
-- **Video Processing**: MoviePy
-- **Data Validation**: Pydantic v2
-- **Asset Storage**: VideoDB
-
-## Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/ayushnangia/Hitchcock.git
-cd Hitchcock
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: .\venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-## Project Structure
-
-```
-├── hitchcock/
-│   ├── core/
-│   │   ├── models.py      # Pydantic models
-│   │   └── config.py      # Configuration management
-│   ├── services/
-│   │   ├── image.py       # Image generation service
-│   │   ├── video.py       # Video processing service
-│   │   └── storage.py     # Asset management
-│   └── utils/
-│       ├── validators.py  # Custom validators
-│       └── helpers.py     # Utility functions
-├── tests/
-├── requirements.txt
-└── README.md
-```
-
-## License
-
-MIT

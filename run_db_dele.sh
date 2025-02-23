@@ -1,4 +1,3 @@
-rm messages.db
 rm data/storyboard/*
 rm -r sessions/*
 rm -r output/videos/*
