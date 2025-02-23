@@ -9,26 +9,47 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
+    <script>
+      // Initialize theme from localStorage or default to dark
+      const initialTheme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', initialTheme);
+    </script>
     <style>
-      :root {
+      /* Light theme variables */
+      :root[data-theme='light'] {
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --background: #f8fafc;
+        --surface: #ffffff;
+        --surface-light: #f1f5f9;
+        --surface-lighter: #e2e8f0;
+        --text: #0f172a;
+        --text-secondary: #475569;
+        --border: #e2e8f0;
+      }
+
+      /* Dark theme variables */
+      :root[data-theme='dark'] {
         --primary: #3b82f6;
         --primary-dark: #2563eb;
         --background: #030712;
         --surface: #111827;
         --surface-light: #1f2937;
+        --surface-lighter: #374151;
         --text: #f9fafb;
         --text-secondary: #9ca3af;
+        --border: #1f2937;
       }
 
       body {
         background-color: var(--background);
         color: var(--text);
-        font-family: system-ui, -apple-system, sans-serif;
+        transition: background-color 0.3s, color 0.3s;
       }
 
       .timeline-scroll {
         scrollbar-width: thin;
-        scrollbar-color: var(--surface-light) var(--surface);
+        scrollbar-color: var(--surface-lighter) var(--surface-light);
       }
 
       .timeline-scroll::-webkit-scrollbar {
@@ -36,12 +57,12 @@
       }
 
       .timeline-scroll::-webkit-scrollbar-track {
-        background: var(--surface);
+        background: var(--surface-light);
         border-radius: 3px;
       }
 
       .timeline-scroll::-webkit-scrollbar-thumb {
-        background-color: var(--surface-light);
+        background-color: var(--surface-lighter);
         border-radius: 3px;
         transition: background-color 0.2s;
       }
@@ -52,47 +73,62 @@
 
       .media-card {
         background-color: var(--surface);
-        border: 1px solid var(--surface-light);
+        border: 1px solid var(--border);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       .media-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
         border-color: var(--primary);
       }
 
-      .media-container {
-        background-color: rgba(0, 0, 0, 0.5);
+      .edit-overlay {
+        opacity: 0;
+        transition: opacity 0.2s ease;
       }
 
-      @keyframes spin {
-        to {
+      .media-card:hover .edit-overlay {
+        opacity: 1;
+      }
+
+      .dialog-content {
+        background-color: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+
+      .dialog-input {
+        background-color: var(--surface-light);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+
+      .dialog-input:focus {
+        border-color: var(--primary);
+      }
+
+      @keyframes processing {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
           transform: rotate(360deg);
         }
       }
 
-      .animate-spin {
-        animation: spin 1s linear infinite;
+      .processing-animation {
+        animation: processing 2s linear infinite;
       }
 
-      .shimmer {
-        background: linear-gradient(
-          90deg,
-          var(--surface) 0%,
-          var(--surface-light) 50%,
-          var(--surface) 100%
-        );
-        background-size: 200% 100%;
-        animation: shimmer 1.5s infinite;
-      }
-
-      @keyframes shimmer {
-        0% {
-          background-position: 200% 0;
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
         }
-        100% {
-          background-position: -200% 0;
+        to {
+          opacity: 1;
+          transform: translateY(0);
         }
       }
     </style>
@@ -100,34 +136,123 @@
   <body class="min-h-screen flex flex-col">
     <!-- Navigation -->
     <nav
-      class="bg-surface/95 border-b border-surface-light/20 sticky top-0 z-50 backdrop-blur-lg shadow-lg"
+      class="border-b transition-colors duration-200"
+      style="background-color: var(--surface); border-color: var(--border)"
     >
       <div class="container mx-auto px-4 py-3">
         <div class="flex justify-between items-center">
           <div class="flex items-center space-x-4">
             <i class="fas fa-film text-primary text-2xl"></i>
-            <h1 class="text-2xl font-bold tracking-tight">Hitchcock</h1>
+            <div>
+              <h1 class="text-2xl font-bold tracking-tight">Hitchcock</h1>
+              <p class="text-sm italic" style="color: var(--text-secondary)">
+                you call the shots
+              </p>
+            </div>
           </div>
-          <div class="flex items-center space-x-4">
-            <span id="lastUpdated" class="text-sm text-text-secondary"></span>
+          <div class="flex items-center space-x-6">
+            <!-- Theme Toggle -->
             <button
-              id="refreshButton"
-              class="px-4 py-2 bg-primary hover:bg-primary-dark rounded-lg flex items-center gap-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+              id="themeToggle"
+              class="p-2 rounded-lg transition-colors duration-200 hover:bg-surface-light"
+              style="color: var(--text-secondary)"
             >
-              <i class="fas fa-sync-alt"></i>
-              <span>Refresh</span>
+              <i class="fas fa-moon dark-icon"></i>
+              <i class="fas fa-sun light-icon" style="display: none"></i>
             </button>
+
+            <div class="flex items-center space-x-4">
+              <span
+                id="lastUpdated"
+                class="text-sm"
+                style="color: var(--text-secondary)"
+              ></span>
+              <button
+                id="refreshButton"
+                class="px-4 py-2 rounded-lg flex items-center gap-2 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                style="background-color: var(--primary)"
+              >
+                <i class="fas fa-sync-alt"></i>
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </nav>
 
+    <!-- Edit Dialog -->
+    <dialog
+      id="editDialog"
+      class="rounded-lg shadow-xl p-0 backdrop:bg-black/50"
+    >
+      <div class="dialog-content w-[32rem] max-w-full">
+        <div
+          class="border-b p-4 flex justify-between items-center"
+          style="border-color: var(--border)"
+        >
+          <h3 class="text-lg font-semibold">Edit Image</h3>
+          <button
+            onclick="closeEditDialog()"
+            style="color: var(--text-secondary)"
+            class="hover:text-text transition-colors"
+          >
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="p-6">
+          <div class="mb-6">
+            <p class="text-sm mb-2" style="color: var(--text-secondary)">
+              Selected Image:
+            </p>
+            <p id="selectedImageName" class="text-sm font-medium"></p>
+          </div>
+
+          <div class="mb-6">
+            <label for="editInstructions" class="block text-sm font-medium mb-2"
+              >Edit Instructions</label
+            >
+            <textarea
+              id="editInstructions"
+              class="dialog-input w-full h-32 px-3 py-2 rounded-lg focus:outline-none"
+              placeholder="Describe the changes you want to make..."
+            ></textarea>
+          </div>
+        </div>
+
+        <div
+          class="border-t p-4 flex justify-end space-x-3"
+          style="border-color: var(--border)"
+        >
+          <button
+            onclick="closeEditDialog()"
+            class="px-4 py-2 rounded-lg transition-colors"
+            style="color: var(--text-secondary)"
+          >
+            Cancel
+          </button>
+          <button
+            onclick="processEdit()"
+            id="submitEdit"
+            class="px-4 py-2 rounded-lg text-white transition-colors flex items-center space-x-2"
+            style="background-color: var(--primary)"
+          >
+            <span>Submit</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+
     <main class="container mx-auto px-4 py-8 flex-1">
       <!-- Scene Timeline Section -->
       <section class="mb-12">
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-semibold text-text">Scene Timeline</h2>
-          <div class="flex items-center space-x-2 text-text-secondary">
+          <h2 class="text-2xl font-semibold">Scene Timeline</h2>
+          <div
+            class="flex items-center space-x-2"
+            style="color: var(--text-secondary)"
+          >
             <i class="fas fa-clock text-sm"></i>
             <span class="text-sm">Latest scenes</span>
           </div>
@@ -135,20 +260,7 @@
         <div class="relative">
           <div class="overflow-x-auto timeline-scroll">
             <div id="imageTimeline" class="flex gap-4 pb-4 min-w-full">
-              <!-- Loading placeholders -->
-              <div class="animate-pulse flex gap-4">
-                ${Array(6).fill().map(() => `
-                <div
-                  class="media-card rounded-xl overflow-hidden flex-shrink-0"
-                  style="width: 240px"
-                >
-                  <div class="media-container relative pt-[75%] shimmer"></div>
-                  <div class="p-3">
-                    <div class="h-4 bg-surface-light rounded w-3/4"></div>
-                  </div>
-                </div>
-                `).join('')}
-              </div>
+              <!-- Images will be populated here -->
             </div>
           </div>
           <div
@@ -163,8 +275,11 @@
       <!-- Videos Section -->
       <section>
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-semibold text-text">Generated Videos</h2>
-          <div class="flex items-center space-x-2 text-text-secondary">
+          <h2 class="text-2xl font-semibold">Generated Videos</h2>
+          <div
+            class="flex items-center space-x-2"
+            style="color: var(--text-secondary)"
+          >
             <i class="fas fa-video text-sm"></i>
             <span id="videoCount" class="text-sm">0 videos</span>
           </div>
@@ -175,19 +290,48 @@
       </section>
     </main>
 
-    <footer class="mt-auto py-6 bg-surface">
+    <footer class="mt-auto py-6" style="background-color: var(--surface)">
       <div class="container mx-auto px-4">
-        <p class="text-center text-text-secondary text-sm">
+        <p class="text-center text-sm" style="color: var(--text-secondary)">
           Hitchcock Media Timeline • <span id="currentYear"></span>
         </p>
       </div>
     </footer>
 
     <script>
+      // Theme toggle functionality
+      const themeToggle = document.getElementById('themeToggle');
+      const darkIcon = document.querySelector('.dark-icon');
+      const lightIcon = document.querySelector('.light-icon');
+
+      function updateThemeIcons(theme) {
+        if (theme === 'dark') {
+          darkIcon.style.display = 'none';
+          lightIcon.style.display = 'inline-block';
+        } else {
+          darkIcon.style.display = 'inline-block';
+          lightIcon.style.display = 'none';
+        }
+      }
+
+      // Initialize theme icons
+      updateThemeIcons(initialTheme);
+
+      themeToggle.addEventListener('click', () => {
+        const currentTheme =
+          document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcons(newTheme);
+      });
+
       const refreshButton = document.getElementById('refreshButton');
       const lastUpdated = document.getElementById('lastUpdated');
       const videoCount = document.getElementById('videoCount');
       const currentYear = document.getElementById('currentYear');
+      const editDialog = document.getElementById('editDialog');
       let isLoading = false;
 
       // Update current year
@@ -203,28 +347,61 @@
         return date.toLocaleDateString();
       }
 
+      function openEditDialog(imageName) {
+        selectedImageName.textContent = imageName;
+        editDialog.showModal();
+      }
+
+      function closeEditDialog() {
+        editDialog.close();
+        document.getElementById('editInstructions').value = '';
+      }
+
+      async function processEdit() {
+        const submitBtn = document.getElementById('submitEdit');
+        const originalContent = submitBtn.innerHTML;
+
+        submitBtn.innerHTML = `
+          <i class="fas fa-circle-notch processing-animation"></i>
+          <span>Processing...</span>
+        `;
+        submitBtn.disabled = true;
+
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        submitBtn.innerHTML = `
+          <i class="fas fa-check"></i>
+          <span>Done!</span>
+        `;
+        submitBtn.style.backgroundColor = '#16a34a';
+
+        setTimeout(() => {
+          submitBtn.innerHTML = originalContent;
+          submitBtn.style.backgroundColor = 'var(--primary)';
+          submitBtn.disabled = false;
+          closeEditDialog();
+        }, 1500);
+      }
+
       async function fetchFiles() {
         if (isLoading) return;
 
         try {
           isLoading = true;
           refreshButton.innerHTML =
-            '<i class="fas fa-sync-alt animate-spin"></i><span>Loading...</span>';
+            '<i class="fas fa-sync-alt processing-animation"></i><span>Loading...</span>';
           refreshButton.disabled = true;
-          refreshButton.classList.add('opacity-75');
+          refreshButton.style.opacity = '0.75';
 
           const response = await fetch('/api/files');
           const data = await response.json();
 
-          // Update last updated time
           lastUpdated.textContent = formatLastUpdated(new Date());
-
-          // Update video count
           videoCount.textContent = `${data.videos.length} video${
             data.videos.length !== 1 ? 's' : ''
           }`;
 
-          // Populate images timeline with fade-in animation
+          // Populate images timeline
           const imageTimeline = document.getElementById('imageTimeline');
           imageTimeline.innerHTML = data.images
             .map(
@@ -234,6 +411,14 @@
                      index * 0.1
                    }s forwards;">
                 <div class="media-container relative pt-[75%] group">
+                  <div class="edit-overlay absolute top-2 right-2 z-10">
+                    <button 
+                      onclick="openEditDialog('${image}')"
+                      class="w-8 h-8 rounded-full bg-black/50 hover:bg-black/75 transition-colors flex items-center justify-center text-white"
+                    >
+                      <i class="fas fa-pencil-alt text-sm"></i>
+                    </button>
+                  </div>
                   <img 
                     src="/output/images/${image}"
                     alt="${image}"
@@ -242,14 +427,14 @@
                   >
                 </div>
                 <div class="p-3">
-                  <p class="text-sm text-text-secondary truncate">${image}</p>
+                  <p class="text-sm truncate" style="color: var(--text-secondary);">${image}</p>
                 </div>
               </div>
             `
             )
             .join('');
 
-          // Populate videos with fade-in animation
+          // Populate videos
           const videoGrid = document.getElementById('videoGrid');
           videoGrid.innerHTML = data.videos
             .map(
@@ -262,15 +447,14 @@
                   <video 
                     controls 
                     class="w-full h-full transition-transform duration-300 group-hover:scale-105"
-
                   >
                     <source src="/output/videos/${video}" type="video/mp4">
                     Your browser does not support the video tag.
                   </video>
                 </div>
                 <div class="p-4">
-                  <p class="text-sm text-text truncate mb-1">${video}</p>
-                  <p class="text-xs text-text-secondary">MP4 Video</p>
+                  <p class="text-sm truncate" style="color: var(--text);">${video}</p>
+                  <p class="text-xs" style="color: var(--text-secondary);">MP4 Video</p>
                 </div>
               </div>
             `
@@ -278,13 +462,12 @@
             .join('');
         } catch (error) {
           console.error('Error fetching files:', error);
-          // Show error toast or notification here
         } finally {
           isLoading = false;
           refreshButton.innerHTML =
             '<i class="fas fa-sync-alt"></i><span>Refresh</span>';
           refreshButton.disabled = false;
-          refreshButton.classList.remove('opacity-75');
+          refreshButton.style.opacity = '1';
         }
       }
 
@@ -293,22 +476,6 @@
 
       // Initial fetch
       fetchFiles();
-
-      // Add keyframe animation for fade-in effect
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `;
-      document.head.appendChild(style);
     </script>
   </body>
 </html>
