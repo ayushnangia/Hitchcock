@@ -2,14 +2,22 @@
 
 Hitchcock is an innovative multi-agent system that automates the movie production pipeline from script to screen. Built with modern AI technologies, it orchestrates specialized agents to handle different aspects of movie production, from scriptwriting to audio synthesis.
 
+🏆 **Winner of the [ElevenLabs Worldwide Hackathon](https://hackathon.elevenlabs.io/) in Bengaluru!**
+
 ## 🎯 Key Features
 
 - **Automated Script Generation**: AI-powered script creation with deep research capabilities
 - **Intelligent Story Boarding**: Automated scene breakdown and shot planning
 - **Visual Element Planning**: Comprehensive planning of lighting, props, and atmosphere
 - **Audio Synthesis**: Voice generation and audio management
-- **Multi-Agent Architecture**: Specialized agents working together in a coordinated pipeline
+- **Multi-Agent Architecture**: Specialized agents built using [Mahilo](https://github.com/wjayesh/mahilo/), a powerful multi-agent framework that enables seamless agent-to-agent communication
 - **Modern Tech Stack**: Built with Python 3.8+, using cutting-edge AI and media processing libraries
+
+## 🎬 Demo
+
+Watch Hitchcock in action:
+
+[![Hitchcock Demo](https://img.youtube.com/vi/O0bswr-46kg/0.jpg)](https://www.youtube.com/watch?v=O0bswr-46kg)
 
 ## 🏗 System Architecture
 
@@ -131,14 +139,16 @@ sh run_db_dele.sh
 python control_plane.py
 ```
 
-4. Start the script writer agent:
+4. Once the control plane is running, you can start interacting with the agents using the Mahilo CLI. Begin with the StoryWriterAgent:
 ```bash
-mahilo mahilo connect --agent-name StoryWriterAgent
-``` 
+mahilo connect --agent-name StoryWriterAgent
+```
 
-5. Talk to the agent
+This will open an interactive chat session with the StoryWriterAgent. You can similarly connect to other agents:
 ```bash
-mahilo mahilo chat --agent-name [StoryWriterAgent|StoryBoarderAgent|DOPAgent|AudioAgent]
+mahilo connect --agent-name StoryBoarderAgent
+mahilo connect --agent-name DOPAgent
+mahilo connect --agent-name AudioAgent
 ```
 
 ## 📁 Project Structure
