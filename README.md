@@ -68,13 +68,46 @@ The system consists of the following specialized agents:
 ### 4. Audio Agent
 - **Purpose**: Manages audio synthesis and voice generation
 - **Capabilities**:
-  - Voice synthesis using Eleven Labs
+  - Voice synthesis using **Eleven Labs** or **60db** (peer providers; pick via `AUDIO_PROVIDER` env)
   - Audio storage and retrieval
   - Voice consistency management
 - **Features**:
   - Character voice generation
   - Audio file management
   - Integration with video pipeline
+
+#### 60db provider (alongside ElevenLabs / litellm)
+
+This fork adds **60db** as a peer of the existing cloud services across three concerns. One `SIXTYDB_API_KEY` unlocks all of them; each has an independent env switch so you can mix and match.
+
+| Concern | File | Switch | 60db endpoint |
+|---|---|---|---|
+| **TTS** | `agents/audio/sixtydb_service.py` | `AUDIO_PROVIDER=sixtydb` | `POST /tts-synthesize` |
+| **LLM** | `agents/sixtydb_llm.py` | `LLM_PROVIDER=sixtydb` | `POST /v1/chat/completions` (via litellm `openai/<model>` route) |
+| **STT** | `agents/audio/sixtydb_stt_service.py` | _utility_ — no auto-wiring | `POST /stt` |
+
+**TTS** — `SixtyDbService` mirrors `ElevenLabsService.generate_audio(text, scene_id) -> path`. The audio agent's FFmpeg pipeline globs `output/audio/SCENE_ID.mp3` regardless of which provider produced the file, so the switch is zero-touch downstream.
+
+**LLM** — `agents.sixtydb_llm.get_litellm_model(model_id, **kwargs)` returns a `smolagents.LiteLLMModel` configured for 60db when `LLM_PROVIDER=sixtydb`, or a vanilla one otherwise. The script writer's `research_agent.py` calls through this factory, so the model the agent uses is now switchable end-to-end without touching `model_id` in code.
+
+**STT** — Hitchcock's pipeline starts from typed text and has no audio-input agent, so `SixtyDbSTTService` ships as a utility:
+
+```python
+from agents.audio.sixtydb_stt_service import SixtyDbSTTService
+idea_text = SixtyDbSTTService().transcribe("path/to/spoken_idea.wav")
+```
+
+```env
+SIXTYDB_API_KEY=sk_live_...
+AUDIO_PROVIDER=sixtydb                 # narration through 60db
+LLM_PROVIDER=sixtydb                   # script writer through 60db
+SIXTYDB_API_BASE=https://api.60db.ai   # optional
+SIXTYDB_TTS_VOICE_ID=fbb75ed2-975a-40c7-9e06-38e30524a9a1
+SIXTYDB_LLM_MODEL=60db-tiny
+SIXTYDB_STT_LANGUAGE=auto
+```
+
+Reference: [docs.60db.ai](https://docs.60db.ai).
 
 ## 🚀 Getting Started
 

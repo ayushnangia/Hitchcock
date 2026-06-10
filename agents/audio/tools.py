@@ -1,11 +1,27 @@
 from typing import Dict, List
 from agents.audio.storage import AudioStorage
 from agents.audio.eleven_labs_service import ElevenLabsService
+from agents.audio.sixtydb_service import SixtyDbService
 import os
 from mutagen.mp3 import MP3
 from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 import glob
 import subprocess
+
+
+def _get_audio_service():
+    """Pick the TTS backend based on AUDIO_PROVIDER env var.
+
+    Both services expose the same `generate_audio(text, scene_id)`
+    interface and write `output/audio/{scene_id}.mp3`, so the rest of
+    this file (ffmpeg pipeline, file globs) is provider-agnostic.
+
+    Defaults to ElevenLabs to keep existing setups working.
+    """
+    provider = os.getenv("AUDIO_PROVIDER", "elevenlabs").strip().lower()
+    if provider in ("60db", "sixtydb"):
+        return SixtyDbService()
+    return ElevenLabsService()
 
 def process_scripts_for_audio() -> str:
     """
@@ -18,7 +34,7 @@ def process_scripts_for_audio() -> str:
     """
     # Initialize storage and audio service clients
     storage = AudioStorage()
-    audio_service = ElevenLabsService()
+    audio_service = _get_audio_service()
     
     # Get all shot specs from storage
     shot_specs = storage.load_shot_image_specs()
