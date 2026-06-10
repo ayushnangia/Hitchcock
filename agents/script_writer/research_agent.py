@@ -2,11 +2,12 @@ import os
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
 from huggingface_hub import login
-from smolagents import CodeAgent, LiteLLMModel, ToolCallingAgent
+from smolagents import CodeAgent, ToolCallingAgent
 import litellm
 
 from .research_agent_tools import ScriptResearchTools
 from .prompt import story_writer_prompt
+from agents.sixtydb_llm import get_litellm_model
 
 # Load environment variables and login to Hugging Face
 load_dotenv(override=True)
@@ -40,8 +41,10 @@ class ScriptWriterResearchAgent:
         planning_interval: int = 4,
         max_tokens: int = 4096
     ):
-        # Initialize the LLM model
-        self.model = LiteLLMModel(
+        # Initialize the LLM model — `get_litellm_model` returns either a
+        # vanilla LiteLLMModel or one configured for 60db, depending on
+        # LLM_PROVIDER env. Default behaviour is unchanged.
+        self.model = get_litellm_model(
             model_id,
             custom_role_conversions={"tool-call": "assistant", "tool-response": "user"},
             max_completion_tokens=max_tokens,
